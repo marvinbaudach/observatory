@@ -2,11 +2,13 @@
 
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 
-export function PostProcessing() {
+interface Props { glow?: number; }
+
+export function PostProcessing({ glow = 0.5 }: Props) {
   return (
     <EffectComposer>
       <Bloom
-        intensity={0.5}
+        intensity={glow}
         luminanceThreshold={0.82}
         luminanceSmoothing={0.025}
         mipmapBlur

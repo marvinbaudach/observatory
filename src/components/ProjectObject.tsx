@@ -10,7 +10,7 @@ import type { Project, ProjectId } from '@/lib/projects';
 // objects are almost pure emissive (self-lit), so a flat material reads as a
 // solid blob — modulating the glow with smooth value noise gives them texture.
 let _surfaceTex: THREE.DataTexture | null = null;
-function surfaceTexture(): THREE.DataTexture {
+export function surfaceTexture(): THREE.DataTexture {
   if (_surfaceTex) return _surfaceTex;
   const S = 256;
   const data = new Uint8Array(S * S * 4);
