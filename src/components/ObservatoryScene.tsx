@@ -6,7 +6,7 @@ import { Float, PerformanceMonitor, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { PROJECTS, type ProjectId, type Project } from '@/lib/projects';
 import { CameraRig }      from './CameraRig';
-import { ProjectObject, surfaceTexture } from './ProjectObject';
+import { ProjectObject } from './ProjectObject';
 import { Particles }      from './Particles';
 import { Nebula }         from './Nebula';
 import { PostProcessing } from './PostProcessing';
@@ -85,95 +85,60 @@ function ExtraGeometry({ geo, reduced }: { geo: ExtraGeom; reduced: boolean }) {
 }
 
 function ExtraMaterial({ style, color, lum, reduced }: { style: ExtraStyle; color: string; lum: number; reduced: boolean }) {
-  const surf = surfaceTexture();
-  const gem  = gemTexture();
-  switch (style) {
-    case 'crystal':
-      // Polished gemstone. On mobile drop to a plain standard material — the
-      // physical clearcoat/reflectivity pass is one of the heaviest costs.
-      return reduced ? (
-        <meshStandardMaterial
-          color="#05040d"
-          emissive={color}
-          emissiveIntensity={0.9 * lum}
-          emissiveMap={gem}
-          metalness={0.8}
-          roughness={0.18}
-          roughnessMap={gem}
-        />
-      ) : (
-        <meshPhysicalMaterial
-          color="#05040d"
-          emissive={color}
-          emissiveIntensity={0.7 * lum}
-          emissiveMap={gem}
-          metalness={0.9}
-          roughness={0.12}
-          roughnessMap={gem}
-          clearcoat={1}
-          clearcoatRoughness={0.1}
-          reflectivity={1}
-        />
-      );
-    case 'diamond':
-      // Transparent refractive gem. Real transmission + diamond IOR + dispersion
-      // bends the nebula and the coloured object lights through the facets for
-      // rainbow "fire". The whole effect needs a per-frame transmission render
-      // pass, so on mobile we swap in a cheap translucent stand-in instead.
-      return reduced ? (
-        <meshStandardMaterial
-          color="#aab4d4"
-          metalness={0}
-          roughness={0.05}
-          transparent
-          opacity={0.35}
-        />
-      ) : (
-        <meshPhysicalMaterial
-          color="#ffffff"
-          transmission={1}
-          transparent
-          opacity={1}
-          ior={1.5}
-          thickness={0.8}
-          roughness={0.22}
-          metalness={0}
-          clearcoat={1}
-          clearcoatRoughness={0.06}
-          attenuationColor={color}
-          attenuationDistance={6}
-          dispersion={2}
-          specularIntensity={1}
-        />
-      );
-    case 'neon':
-      // Almost pure light — pops hardest through the bloom pass.
-      return (
-        <meshStandardMaterial
-          color="#03030a"
-          emissive={color}
-          emissiveIntensity={1.8 * lum}
-          metalness={0.1}
-          roughness={0.5}
-        />
-      );
-    default:
-      // Faceted metallic — the original textured, flat-shaded blob look.
-      return (
-        <meshStandardMaterial
-          color="#0a0816"
-          emissive={color}
-          emissiveIntensity={0.9 * lum}
-          emissiveMap={surf}
-          metalness={0.6}
-          roughness={1}
-          roughnessMap={surf}
-          bumpMap={surf}
-          bumpScale={0.06}
-          flatShading
-        />
-      );
+  const gem = gemTexture();
+
+  // Every object is a frosted cut crystal; the style only varies how much inner
+  // glow it carries and how much rainbow fire the facets throw.
+  const emissiveIntensity =
+    style === 'neon'    ? 1.3 * lum :   // a glowing core inside the glass
+    style === 'diamond' ? 0          :  // clearest — pure refraction, no glow
+    style === 'crystal' ? 0.45 * lum :
+                          0.6 * lum;     // facet
+  const dispersion = style === 'diamond' ? 3 : 1.2;
+
+  // Mobile: the transmission pass is too heavy, so phones get a cheap translucent
+  // flat-shaded stand-in instead of real frosted glass.
+  if (reduced) {
+    return (
+      <meshStandardMaterial
+        color="#070611"
+        emissive={color}
+        emissiveIntensity={(emissiveIntensity || 0.5) * 0.9}
+        roughnessMap={gem}
+        metalness={0.2}
+        roughness={0.45}
+        transparent
+        opacity={0.45}
+        flatShading
+      />
+    );
   }
+
+  // Desktop: real frosted, cut crystal. transmission + high roughness blurs
+  // whatever is behind the facets; flatShading gives the sharp cut-gem silhouette;
+  // the object colour tints the transmitted light via attenuation.
+  return (
+    <meshPhysicalMaterial
+      color="#ffffff"
+      transmission={1}
+      transparent
+      opacity={1}
+      ior={1.6}
+      thickness={1.4}
+      roughness={0.5}
+      roughnessMap={gem}
+      metalness={0}
+      clearcoat={1}
+      clearcoatRoughness={0.18}
+      attenuationColor={color}
+      attenuationDistance={3.5}
+      dispersion={dispersion}
+      specularIntensity={1}
+      emissive={color}
+      emissiveIntensity={emissiveIntensity}
+      flatShading
+    />
+  );
 }
 
 // Fisher–Yates shuffle (pure, returns a new array).

@@ -97,6 +97,8 @@ export function ProjectObject({ project, selected, onSelect }: Props) {
           roughnessMap={tex}
           bumpMap={tex}
           bumpScale={0.06}
+          transparent
+          opacity={0.78}
           flatShading
         />
       </mesh>
