@@ -1,30 +1,165 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ─────────────────────────────────────────────────────────────────
+   OBSERVATORY — "Celestial Atlas"
+   The 3D scene is the canvas; this DOM layer is the cartographer's
+   overlay: Cormorant Garamond for celestial titles, Space Mono for
+   coordinates and instrument data. Indigo glass, hairline frames.
+   ───────────────────────────────────────────────────────────────── */
+:root {
+  --void:      #04030f;
+  --glass:     rgba(9, 8, 28, 0.84);
+  --frame:     rgba(120, 140, 255, 0.22);
+  --frame-dim: rgba(120, 140, 255, 0.12);
+  --star:      rgba(214, 222, 255, 0.96);
+  --star-dim:  rgba(150, 165, 230, 0.62);
+  --star-faint:rgba(120, 140, 220, 0.38);
+  --azure:     #5e7cff;
+  --font-serif:'Cormorant Garamond', Georgia, serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+}
+
 html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #04030f;
+  background: var(--void);
   touch-action: none;
 }
 
-/* ── Info Panel ──────────────────────────────────────────────── */
+/* Vignette + grain to deepen the void around the scene */
+.obs-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(120% 100% at 50% 50%, transparent 52%, rgba(2, 1, 8, 0.55) 100%);
+}
+.obs-vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.05;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Wordmark (top-left) ─────────────────────────────────────── */
+.obs-wordmark {
+  position: absolute;
+  top: 2.2rem;
+  left: 2.4rem;
+  z-index: 10;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Orchestrated intro: each line rises in sequence, the rule draws itself */
+.obs-wordmark__title,
+.obs-wordmark__coord,
+.obs-wordmark__sub {
+  opacity: 0;
+  animation: obsRise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.obs-wordmark__title { animation-delay: 0.15s; }
+.obs-wordmark__coord { animation-delay: 0.70s; }
+.obs-wordmark__sub   { animation-delay: 0.90s; }
+
+@keyframes obsRise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes obsRule {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.obs-wordmark__title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 2.6rem;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: var(--star);
+  text-shadow: 0 0 28px rgba(94, 124, 255, 0.35);
+}
+
+.obs-wordmark__rule {
+  width: 3.2rem;
+  height: 1px;
+  margin: 0.7rem 0 0.6rem;
+  background: linear-gradient(90deg, var(--azure), transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: obsRule 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) 0.45s forwards;
+}
+
+.obs-wordmark__coord {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  color: var(--star-dim);
+}
+
+.obs-wordmark__sub {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--star-faint);
+  margin-top: 0.35rem;
+}
+
+/* ── Hint (bottom-center) ────────────────────────────────────── */
+.obs-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.22em;
+  color: var(--star-faint);
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+  animation: fadeHint 3s ease-in forwards;
+}
+
+/* ── Info Panel — star-chart card ────────────────────────────── */
 .info-panel {
   position: fixed;
-  right: 2rem;
+  right: 2.2rem;
   top: 50%;
   transform: translateX(48px) translateY(-50%);
-  width: 320px;
-  background: rgba(6, 4, 22, 0.82);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(100, 120, 255, 0.14);
-  border-radius: 14px;
-  padding: 28px 24px 24px;
+  width: 340px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--frame);
+  border-radius: 4px;
+  padding: 30px 28px 26px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.35s ease, transform 0.35s ease;
-  z-index: 10;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  z-index: 20;
+  /* inset hairline = double cartographic frame */
+  box-shadow:
+    inset 0 0 0 1px var(--frame-dim),
+    0 30px 80px -40px rgba(0, 0, 0, 0.9);
 }
+
+/* corner ticks */
+.info-panel::before,
+.info-panel::after {
+  content: '';
+  position: absolute;
+  width: 12px; height: 12px;
+  border: 1px solid var(--azure);
+  opacity: 0.5;
+}
+.info-panel::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+.info-panel::after  { bottom: 8px; right: 8px; border-left: 0; border-top: 0; }
 
 .info-panel--visible {
   opacity: 1;
@@ -38,71 +173,80 @@ html, body {
   right: 16px;
   background: none;
   border: none;
-  color: rgba(140, 160, 255, 0.4);
-  font-size: 1rem;
+  color: var(--star-faint);
+  font-size: 0.95rem;
   cursor: pointer;
   line-height: 1;
   transition: color 0.15s;
+  z-index: 1;
 }
-.info-panel__close:hover { color: rgba(160, 180, 255, 0.9); }
+.info-panel__close:hover { color: var(--star); }
 
 .info-panel__title {
-  font-family: monospace;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: rgba(210, 220, 255, 0.95);
-  letter-spacing: 0.06em;
-  margin-bottom: 12px;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.7rem;
+  line-height: 1.05;
+  color: var(--star);
+  letter-spacing: 0.01em;
+  margin-bottom: 14px;
 }
 
 .info-panel__desc {
-  font-family: monospace;
-  font-size: 0.72rem;
-  line-height: 1.65;
-  color: rgba(160, 175, 230, 0.7);
-  margin-bottom: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.85;
+  color: var(--star-dim);
+  margin-bottom: 18px;
 }
 
 .info-panel__tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .info-panel__tag {
-  font-family: monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  padding: 3px 9px;
-  border-radius: 20px;
-  border: 1px solid rgba(100, 120, 255, 0.22);
-  color: rgba(140, 160, 255, 0.65);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 2px;
+  border: 1px solid var(--frame);
+  color: var(--star-dim);
 }
 
 .info-panel__link {
   display: inline-block;
-  font-family: monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  padding: 8px 16px;
-  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 9px 18px;
+  border-radius: 2px;
   border: 1px solid;
   text-decoration: none;
-  transition: opacity 0.15s;
+  transition: background 0.2s, color 0.2s;
 }
-.info-panel__link:hover { opacity: 0.75; }
+.info-panel__link:hover { background: rgba(94, 124, 255, 0.12); }
 
-/* ── Intro fade ──────────────────────────────────────────────── */
+/* ── Animations ──────────────────────────────────────────────── */
 @keyframes introFade {
   0%   { opacity: 0; transform: translateY(-8px); }
   45%  { opacity: 0; }
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Hint fade ───────────────────────────────────────────────── */
 @keyframes fadeHint {
   0%   { opacity: 1; }
   70%  { opacity: 1; }
   100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-hint { animation: none; }
+  .obs-wordmark__title, .obs-wordmark__coord, .obs-wordmark__sub { opacity: 1; animation: none; }
+  .obs-wordmark__rule { transform: none; animation: none; }
 }

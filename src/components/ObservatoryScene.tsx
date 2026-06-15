@@ -58,38 +58,20 @@ export default function ObservatoryScene() {
         <PostProcessing />
       </Canvas>
 
-      {/* Top-left label */}
-      <div style={{
-        position: 'absolute', top: '2rem', left: '2rem',
-        pointerEvents: 'none', userSelect: 'none',
-        animation: 'introFade 2.6s ease-out both',
-      }}>
-        <div style={{
-          fontFamily: 'monospace', fontSize: '1.4rem', fontWeight: 700,
-          color: 'rgba(140,160,255,0.88)', letterSpacing: '0.12em',
-        }}>
-          OBSERVATORY
-        </div>
-        <div style={{
-          fontFamily: 'monospace', fontSize: '0.65rem', letterSpacing: '0.15em',
-          color: 'rgba(100,120,220,0.45)', marginTop: '0.3rem',
-        }}>
-          React Three Fiber · Three.js · WebGL
-        </div>
+      {/* Atmospheric vignette + grain over the scene */}
+      <div className="obs-vignette" />
+
+      {/* Wordmark (top-left) */}
+      <div className="obs-wordmark">
+        <div className="obs-wordmark__title">Observatory</div>
+        <div className="obs-wordmark__rule" />
+        <div className="obs-wordmark__coord">α 14ʰ29ᵐ · δ +44°02′ · mag 2.1</div>
+        <div className="obs-wordmark__sub">React Three Fiber · Three.js · WebGL</div>
       </div>
 
       {/* Hint */}
       {!selected && (
-        <div style={{
-          position: 'absolute', bottom: '2rem', left: '50%',
-          transform: 'translateX(-50%)',
-          fontFamily: 'monospace', fontSize: '0.55rem', letterSpacing: '0.18em',
-          color: 'rgba(120,140,220,0.35)', textTransform: 'uppercase',
-          pointerEvents: 'none', userSelect: 'none',
-          animation: 'fadeHint 3s ease-in forwards',
-        }}>
-          Klicke ein Objekt · Orbit mit Drag
-        </div>
+        <div className="obs-hint">Klicke ein Objekt · Orbit mit Drag</div>
       )}
 
       <InfoPanel project={selectedProject} onClose={() => setSelected(null)} />
