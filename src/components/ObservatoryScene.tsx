@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float } from '@react-three/drei';
+import { Float, PerformanceMonitor } from '@react-three/drei';
 import * as THREE from 'three';
 import { PROJECTS, type ProjectId, type Project } from '@/lib/projects';
 import { CameraRig }      from './CameraRig';
@@ -81,6 +81,15 @@ export default function ObservatoryScene() {
   const [glow, setGlow] = useState(1.5);
   const [extra, setExtra] = useState(0);
 
+  // Mobile GPUs are fill-rate bound: MSAA + a bloom composite at full retina DPR
+  // is what makes the scene feel slow. Detect once (lazy init avoids an extra
+  // render) and start conservative; PerformanceMonitor then trims DPR live.
+  const [isMobile] = useState(
+    () => typeof window !== 'undefined' &&
+      matchMedia('(max-width: 768px), (pointer: coarse)').matches,
+  );
+  const [dpr, setDpr] = useState(isMobile ? 1 : 1.5);
+
   const selectedProject: Project | null =
     selected ? PROJECTS.find(p => p.id === selected) ?? null : null;
 
@@ -96,14 +105,24 @@ export default function ObservatoryScene() {
     <div style={{ position: 'relative', width: '100vw', height: '100svh' }}>
       <Canvas
         camera={{ position: [0, 1.5, 12], fov: 55 }}
+        dpr={dpr}
         gl={{
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
-          antialias: true,
+          // MSAA is expensive alongside the bloom pass; on mobile the bloom blur
+          // already softens edges, so drop it there.
+          antialias: !isMobile,
         }}
         style={{ background: '#04030f' }}
         onClick={() => setSelected(null)}
       >
+        {/* Auto-adaptive quality: scale DPR by the live performance factor so a
+            struggling device backs off and a fast one climbs toward native. */}
+        <PerformanceMonitor
+          onChange={({ factor }) =>
+            setDpr(Math.round((0.75 + (isMobile ? 0.75 : 1.25) * factor) * 10) / 10)
+          }
+        />
         <ambientLight intensity={0.12} />
         <OrbitLight color="#fff4e6" />
         {/* cool + warm rim fills for coloured edge highlights */}
@@ -124,7 +143,7 @@ export default function ObservatoryScene() {
         <ExtraField count={extra} />
 
         <Nebula />
-        <Particles />
+        <Particles reduced={isMobile} />
         <PostProcessing glow={glow} />
       </Canvas>
 

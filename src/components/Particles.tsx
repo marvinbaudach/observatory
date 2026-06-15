@@ -59,10 +59,18 @@ function DustParticles() {
   );
 }
 
-export function Particles() {
+export function Particles({ reduced = false }: { reduced?: boolean }) {
   return (
     <>
-      <Stars radius={90} depth={60} count={3500} factor={4} saturation={0} fade speed={0.4} />
+      <Stars
+        radius={90}
+        depth={60}
+        count={reduced ? 1200 : 3500}
+        factor={4}
+        saturation={0}
+        fade
+        speed={0.4}
+      />
       <DustParticles />
     </>
   );
