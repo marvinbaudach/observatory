@@ -157,21 +157,45 @@ function shuffled<T>(src: readonly T[]): T[] {
 const GEO_DECK   = shuffled(Array.from({ length: EXTRA_MAX }, (_, i) => EXTRA_GEOMS[i % EXTRA_GEOMS.length]));
 const STYLE_DECK = shuffled(Array.from({ length: EXTRA_MAX }, (_, i) => EXTRA_STYLES[i % EXTRA_STYLES.length]));
 
-// Random layout generated once at module load (keeps render pure & stable).
-const EXTRA_POOL = Array.from({ length: EXTRA_MAX }, (_, i) => {
-  const r = 6 + Math.random() * 10;
-  const a = Math.random() * Math.PI * 2;
-  return {
-    pos: [Math.cos(a) * r, (Math.random() * 2 - 1) * 5, Math.sin(a) * r] as [number, number, number],
-    scale: 0.5 + Math.random() * 0.8,
-    rot: [Math.random() * Math.PI, Math.random() * Math.PI, 0] as [number, number, number],
-    speed: 0.8 + Math.random() * 1.2,
-    geo: GEO_DECK[i],
-    style: STYLE_DECK[i],
-    color: EXTRA_COLORS[Math.floor(Math.random() * EXTRA_COLORS.length)],
-    lum: 0.7 + Math.random() * 0.9, // per-object luminance multiplier (0.7–1.6×)
-  };
-});
+// The always-on hero centrepiece — its placement is shared so the scattered
+// crystals can be kept clear of it.
+const HERO_POS: [number, number, number] = [0, 0, 1];
+const HERO_SCALE = 2.0;
+
+const dist3 = (a: readonly number[], b: readonly number[]) =>
+  Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+// Collision-aware layout, generated once at module load. Every crystal is
+// re-rolled until it clears the hero, all three project objects and all
+// previously placed crystals, so nothing intersects anything else.
+const EXTRA_POOL = (() => {
+  const placed: { pos: readonly [number, number, number]; radius: number }[] = [
+    { pos: HERO_POS, radius: HERO_SCALE * 0.95 },
+    ...PROJECTS.map(p => ({ pos: p.position, radius: 1.3 })),
+  ];
+  return Array.from({ length: EXTRA_MAX }, (_, i) => {
+    const scale = 0.5 + Math.random() * 0.8;
+    const radius = scale * 1.3 + 0.4; // approx bounding sphere + clearance margin
+    let pos: [number, number, number] = [0, 0, 0];
+    for (let tries = 0; tries < 80; tries++) {
+      const r = 6 + Math.random() * 9;
+      const a = Math.random() * Math.PI * 2;
+      pos = [Math.cos(a) * r, (Math.random() * 2 - 1) * 5, Math.sin(a) * r];
+      if (placed.every(o => dist3(pos, o.pos) > radius + o.radius)) break;
+    }
+    placed.push({ pos, radius });
+    return {
+      pos,
+      scale,
+      rot: [Math.random() * Math.PI, Math.random() * Math.PI, 0] as [number, number, number],
+      speed: 0.8 + Math.random() * 1.2,
+      geo: GEO_DECK[i],
+      style: STYLE_DECK[i],
+      color: EXTRA_COLORS[Math.floor(Math.random() * EXTRA_COLORS.length)],
+      lum: 0.7 + Math.random() * 0.9, // per-object luminance multiplier (0.7–1.6×)
+    };
+  });
+})();
 
 // Magenta key light that orbits the extra field and brightens as more objects
 // are revealed — adding objects literally adds light to the scene.
@@ -222,6 +246,31 @@ function ExtraField({ count, reduced }: { count: number; reduced: boolean }) {
         </Float>
       ))}
     </>
+  );
+}
+
+// Always-on centrepiece: a large frosted-glass torus knot with a magenta core
+// light glowing through its facets. Independent of the Objects slider — it is
+// the hero of the scene and is present from the very first frame.
+function HeroCrystal({ reduced }: { reduced: boolean }) {
+  const spin = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (spin.current) spin.current.rotation.y += delta * 0.12;
+  });
+  return (
+    <group position={HERO_POS}>
+      <Float speed={1} rotationIntensity={0.35} floatIntensity={0.4} floatingRange={[-0.18, 0.18]}>
+        <group ref={spin}>
+          <mesh scale={HERO_SCALE}>
+            <torusKnotGeometry args={[0.6, 0.22, reduced ? 128 : 240, reduced ? 16 : 32]} />
+            <ExtraMaterial style="diamond" color="#e8ecff" lum={1} reduced={reduced} />
+          </mesh>
+        </group>
+      </Float>
+      {/* Magenta core glowing through the glass + a warm rim highlight. */}
+      <pointLight color="#ff2da0" intensity={reduced ? 2.5 : 5} distance={15} decay={1.3} />
+      <pointLight position={[2, 0.6, 1]} color="#fff0f6" intensity={2} distance={11} decay={1.6} />
+    </group>
   );
 }
 
@@ -284,6 +333,8 @@ export default function ObservatoryScene() {
         <pointLight position={[2, 9, 7]} intensity={0.7} decay={0} color="#ff7a3c" />
 
         <CameraRig selected={selected} />
+
+        <HeroCrystal reduced={isMobile} />
 
         {PROJECTS.map(p => (
           <ProjectObject
