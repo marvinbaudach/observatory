@@ -1,5 +1,7 @@
 # Observatory
 
+![Observatory scene](docs/image.png)
+
 **Live demo → [marvinbaudach.github.io/observatory](https://marvinbaudach.github.io/observatory/)**
 
 An interactive 3D scene built with React Three Fiber. Three glowing geometric objects float in space — each represents a portfolio project. Click an object to fly the camera in and read more; drag to orbit freely.
