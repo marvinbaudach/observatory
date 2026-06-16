@@ -47,13 +47,35 @@ export function surfaceTexture(): THREE.DataTexture {
   return (_surfaceTex = tex);
 }
 
+// A varied shape pool so the project objects can look different on each load
+// while keeping their identity (colour, info, click target). Picked in
+// ObservatoryScene and passed in via `geom`.
+export const PROJECT_GEOMS = [
+  'torusKnot', 'icosahedron', 'octahedron',
+  'dodecahedron', 'tetrahedron', 'torus', 'capsule',
+] as const;
+export type ProjectGeom = (typeof PROJECT_GEOMS)[number];
+
+function ProjectGeometry({ geo }: { geo: ProjectGeom }) {
+  switch (geo) {
+    case 'torusKnot':    return <torusKnotGeometry   args={[0.6, 0.22, 200, 16]} />;
+    case 'icosahedron':  return <icosahedronGeometry args={[1, 4]} />;
+    case 'octahedron':   return <octahedronGeometry  args={[1, 0]} />;
+    case 'dodecahedron': return <dodecahedronGeometry args={[1, 0]} />;
+    case 'tetrahedron':  return <tetrahedronGeometry args={[1.15, 0]} />;
+    case 'torus':        return <torusGeometry       args={[0.72, 0.28, 24, 80]} />;
+    case 'capsule':      return <capsuleGeometry     args={[0.5, 0.95, 8, 18]} />;
+  }
+}
+
 interface Props {
   project: Project;
   selected: ProjectId | null;
   onSelect: (id: ProjectId) => void;
+  geom?: ProjectGeom;
 }
 
-export function ProjectObject({ project, selected, onSelect }: Props) {
+export function ProjectObject({ project, selected, onSelect, geom }: Props) {
   const meshRef = useRef<THREE.Mesh>(null);
   const matRef  = useRef<THREE.MeshStandardMaterial>(null);
   const tex = surfaceTexture();
@@ -83,9 +105,7 @@ export function ProjectObject({ project, selected, onSelect }: Props) {
         onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
         onPointerOut={() => { document.body.style.cursor = 'auto'; }}
       >
-        {project.geometry === 'torusKnot'   && <torusKnotGeometry   args={[0.6, 0.22, 200, 16]} />}
-        {project.geometry === 'icosahedron' && <icosahedronGeometry args={[1, 4]} />}
-        {project.geometry === 'octahedron'  && <octahedronGeometry  args={[1, 0]} />}
+        <ProjectGeometry geo={geom ?? project.geometry} />
         <meshStandardMaterial
           ref={matRef}
           color="#0a0816"

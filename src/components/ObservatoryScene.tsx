@@ -6,7 +6,7 @@ import { Float, PerformanceMonitor, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { PROJECTS, type ProjectId, type Project } from '@/lib/projects';
 import { CameraRig }      from './CameraRig';
-import { ProjectObject } from './ProjectObject';
+import { ProjectObject, PROJECT_GEOMS } from './ProjectObject';
 import { Particles }      from './Particles';
 import { Nebula }         from './Nebula';
 import { PostProcessing } from './PostProcessing';
@@ -284,6 +284,11 @@ function shuffled<T>(src: readonly T[]): T[] {
 const GEO_DECK   = shuffled(Array.from({ length: EXTRA_MAX }, (_, i) => EXTRA_GEOMS[i % EXTRA_GEOMS.length]));
 const STYLE_DECK = shuffled(Array.from({ length: EXTRA_MAX }, (_, i) => EXTRA_STYLES[i % EXTRA_STYLES.length]));
 
+// Per-load distinct shapes for the three project objects, so the opening scene
+// looks different on every visit while each project keeps its identity, colour
+// and click target. Re-rolled on each module load (client-only).
+const PROJECT_GEO_DECK = shuffled(PROJECT_GEOMS);
+
 // The always-on hero centrepiece — its placement is shared so the scattered
 // crystals can be kept clear of it.
 const HERO_POS: [number, number, number] = [0, 0, 1];
@@ -483,10 +488,11 @@ export default function ObservatoryScene() {
 
         <HeroCrystal reduced={isMobile} />
 
-        {PROJECTS.map(p => (
+        {PROJECTS.map((p, i) => (
           <ProjectObject
             key={p.id}
             project={p}
+            geom={PROJECT_GEO_DECK[i]}
             selected={selected}
             onSelect={setSelected}
           />
