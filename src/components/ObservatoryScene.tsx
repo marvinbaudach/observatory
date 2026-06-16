@@ -420,13 +420,15 @@ export default function ObservatoryScene() {
   // sparkles — while desktops get the full dozen.
   const extraMax = isMobile ? 6 : EXTRA_MAX;
 
-  // Restore the persisted object count (clamped to this device's max). The scene
-  // is client-only (next/dynamic ssr:false), so reading storage in the lazy
-  // initializer is safe — there is no server render to mismatch.
+  // Seed the scene with 3 figures by default — EXTRA_POOL is re-rolled on every
+  // load, so these are 3 fresh random figures each visit. A persisted count (set
+  // by moving the slider) takes precedence. Client-only (next/dynamic ssr:false),
+  // so reading storage in the lazy initializer is safe — no server render to mismatch.
+  const START_OBJECTS = Math.min(3, extraMax);
   const [extra, setExtra] = useState(() => {
-    if (typeof window === 'undefined') return 0;
+    if (typeof window === 'undefined') return START_OBJECTS;
     const n = parseInt(window.localStorage.getItem(OBJECTS_KEY) ?? '', 10);
-    return Number.isFinite(n) ? Math.min(Math.max(n, 0), extraMax) : 0;
+    return Number.isFinite(n) ? Math.min(Math.max(n, 0), extraMax) : START_OBJECTS;
   });
 
   const [dpr, setDpr] = useState(isMobile ? 1 : 1.5);
