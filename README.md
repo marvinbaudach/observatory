@@ -4,7 +4,7 @@
 
 **Live demo → [marvinbaudach.github.io/observatory](https://marvinbaudach.github.io/observatory/)**
 
-An interactive 3D scene built with React Three Fiber. Three glowing geometric objects float in space — each represents a portfolio project. Click an object to fly the camera in and read more; drag to orbit freely.
+An interactive 3D scene built with React Three Fiber. Glowing objects drift through a nebula — three of them are portfolio projects you can click to fly the camera in and read more. A frosted-glass hero crystal anchors the scene, and an *Objects* slider summons a field of extra figures, from polyhedra to mathematical parametric surfaces (spherical harmonics, a Gielis supershape, a Klein bottle). Drag to orbit freely.
 
 ## Interaction
 
@@ -12,15 +12,20 @@ An interactive 3D scene built with React Three Fiber. Three glowing geometric ob
 |---|---|
 | Click object | Camera flies in, project info slides in |
 | Drag | Orbit the scene |
+| *Objects* slider | Summon more figures into the field (count is remembered) |
 | Escape / click background | Return to overview |
 
 ## Features
 
-- Three geometries: TorusKnot (Solari Board), Icosahedron (Fluid), Octahedron (Observatory)
+- Wide shape repertoire — polyhedra, primitives, and parametric **math surfaces** (spherical harmonic, Gielis supershape, Klein bottle, rippled sphere) tessellated with smooth vertex normals
+- Frosted cut-glass crystals: `meshPhysicalMaterial` transmission + dispersion, rendered **double-sided** so the viewer-facing half reads as solid glass
+- Always-on hero crystal with a magenta core glowing through the glass
+- *Objects* slider reveals a **collision-free field** of extra figures; the count persists in `localStorage`
 - Smooth camera transitions via `CameraControls.setLookAt()`
 - Per-object emissive intensity animated with `useFrame` lerp
 - Bloom postprocessing with `mipmapBlur` — no over-glow artifacts
-- Ambient space dust: custom `Points` shader + `Stars` from Drei
+- Adaptive DPR via `PerformanceMonitor` with a lighter mobile path (fewer lights, no transmission pass)
+- Ambient space dust + nebula backdrop: custom `Points` shaders + `Stars` from Drei
 - 2D info panel (CSS overlay, outside the WebGL pipeline — never blurred by DoF)
 - ACES Filmic tonemapping
 
@@ -60,10 +65,11 @@ src/
 │   ├── layout.tsx              # metadata
 │   └── globals.css             # reset + info panel CSS
 ├── components/
-│   ├── ObservatoryScene.tsx    # Canvas root, state, InfoPanel
+│   ├── ObservatoryScene.tsx    # Canvas root, hero crystal, extra field, math surfaces, state
 │   ├── CameraRig.tsx           # CameraControls + fly-to logic
 │   ├── ProjectObject.tsx       # Float + mesh + animated emissive
 │   ├── Particles.tsx           # Stars + custom dust Points
+│   ├── Nebula.tsx              # volumetric nebula backdrop
 │   ├── PostProcessing.tsx      # EffectComposer, Bloom, Vignette
 │   └── InfoPanel.tsx           # 2D CSS overlay
 └── lib/
