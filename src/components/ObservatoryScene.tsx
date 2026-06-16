@@ -359,7 +359,7 @@ export default function ObservatoryScene() {
       <div className="obs-wordmark">
         <div className="obs-wordmark__title">Observatory</div>
         <div className="obs-wordmark__rule" />
-        <div className="obs-wordmark__coord">{PROJECTS.length + extra} Objects Catalogued</div>
+        <div className="obs-wordmark__coord">{PROJECTS.length + 1 + extra} Objects Catalogued</div>
         <div className="obs-wordmark__sub">React Three Fiber · Three.js · WebGL</div>
       </div>
 
