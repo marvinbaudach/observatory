@@ -238,8 +238,11 @@ html, body {
   bottom: 2rem;
   left: 2.4rem;
   z-index: 20;
-  background: var(--glass);
-  backdrop-filter: blur(16px);
+  /* Lower-alpha fill than --glass so the backdrop blur actually reads as glass
+     instead of a near-opaque slab; saturate lifts the colour bleeding through. */
+  background: rgba(9, 8, 28, 0.42);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
   border: 1px solid var(--frame);
   border-radius: 4px;
   padding: 16px 18px;
@@ -283,6 +286,12 @@ html, body {
   font-variant-numeric: tabular-nums;
   min-width: 16px;
   text-align: right;
+}
+/* FPS row has no slider between label and value — push the number to the right
+   edge so it lines up with the Objects value above it. */
+.obs-panel__val--wide {
+  margin-left: auto;
+  min-width: 32px;
 }
 
 .obs-swatch {

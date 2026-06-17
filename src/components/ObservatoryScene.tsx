@@ -165,7 +165,7 @@ function mathGeometry(name: keyof typeof SURFACES, reduced: boolean): THREE.Buff
 // A wide repertoire of shapes — the slider now reveals genuine variety instead
 // of cycling the same three project geometries: polyhedra, primitives, and a
 // set of mathematical parametric surfaces.
-const EXTRA_MAX = 12;
+const EXTRA_MAX = 24;
 const EXTRA_GEOMS = [
   'torusKnot', 'icosahedron', 'octahedron',
   'dodecahedron', 'tetrahedron', 'torus', 'cone', 'capsule',
@@ -410,16 +410,49 @@ function HeroCrystal({ reduced }: { reduced: boolean }) {
 }
 
 
+// Lives inside the Canvas: useFrame ticks once per rendered frame, so counting
+// ticks over a 250ms window gives the real render FPS. Throttled to ~4 updates/s
+// so the React tree isn't re-rendered every frame.
+function FpsMeter({ onFps }: { onFps: (fps: number) => void }) {
+  const frames = useRef(0);
+  const elapsed = useRef(0);
+  useFrame((_, delta) => {
+    frames.current++;
+    elapsed.current += delta;
+    if (elapsed.current >= 0.25) {
+      onFps(frames.current / elapsed.current);
+      frames.current = 0;
+      elapsed.current = 0;
+    }
+  });
+  return null;
+}
+
+// Guess whether the device is genuinely weak — NOT just whether the window is
+// small. A narrow window on a powerful desktop should still get full quality, so
+// we look at hardware signals instead of viewport width:
+//   • pointer:coarse  → touch-primary (real phone/tablet, typically fill-rate bound)
+//   • hardwareConcurrency ≤ 4 → few CPU cores
+//   • deviceMemory ≤ 4 → little RAM (Chromium-only hint)
+// PerformanceMonitor still trims DPR live afterwards, so this only sets the
+// starting point.
+function detectLowPower(): boolean {
+  if (typeof window === 'undefined') return false;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const cores = navigator.hardwareConcurrency ?? 8;
+  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
+  return coarse || cores <= 4 || mem <= 4;
+}
+
 export default function ObservatoryScene() {
   const [selected, setSelected] = useState<ProjectId | null>(null);
+  const [fps, setFps] = useState(0);
 
-  // Mobile GPUs are fill-rate bound: MSAA + a bloom composite at full retina DPR
-  // is what makes the scene feel slow. Detect once (lazy init avoids an extra
-  // render) and start conservative; PerformanceMonitor then trims DPR live.
-  const [isMobile] = useState(
-    () => typeof window !== 'undefined' &&
-      matchMedia('(max-width: 768px), (pointer: coarse)').matches,
-  );
+  // Low-power devices are fill-rate bound: MSAA + a bloom composite at full
+  // retina DPR is what makes the scene feel slow. Detect once from hardware
+  // signals (lazy init avoids an extra render) and start conservative;
+  // PerformanceMonitor then trims DPR live.
+  const [isMobile] = useState(detectLowPower);
 
   // Cap how many extra objects phones can summon — fewer meshes, lights and
   // sparkles — while desktops get the full dozen.
@@ -478,6 +511,7 @@ export default function ObservatoryScene() {
             setDpr(Math.round((0.75 + (isMobile ? 0.75 : 1.25) * factor) * 10) / 10)
           }
         />
+        <FpsMeter onFps={setFps} />
         <ambientLight intensity={0.12} />
         <OrbitLight color="#fff4e6" />
         {/* cool + warm rim fills for coloured edge highlights */}
@@ -534,6 +568,10 @@ export default function ObservatoryScene() {
             aria-label="Objects"
           />
           <span className="obs-panel__val">{extra}</span>
+        </div>
+        <div className="obs-panel__row">
+          <span className="obs-panel__label">FPS</span>
+          <span className="obs-panel__val obs-panel__val--wide">{fps ? Math.round(fps) : '—'}</span>
         </div>
       </div>
 
