@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CameraControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -31,8 +31,9 @@ export function CameraRig({ selected }: Props) {
   const [introActive, setIntroActive] = useState(true);
   const introT = useRef(0);
 
-  // Place the camera at the start pose immediately (before the first frame).
-  useEffect(() => {
+  // Place the camera at the start pose synchronously before the first paint —
+  // useEffect runs after paint, which let one frame render at the overview pose.
+  useLayoutEffect(() => {
     controlsRef.current?.setLookAt(...INTRO_FROM.position, ...INTRO_FROM.target, false);
   }, []);
 

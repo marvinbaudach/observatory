@@ -504,7 +504,10 @@ export default function ObservatoryScene() {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100svh' }}>
       <Canvas
-        camera={{ position: [0, 1.5, 12], fov: 55 }}
+        // Match the CameraRig intro start pose so the very first frame is
+        // already far out — otherwise the default camera paints one frame in
+        // the middle of the objects before the fly-in takes over.
+        camera={{ position: [11, 20, 58], fov: 55 }}
         dpr={dpr}
         gl={{
           toneMapping: THREE.ACESFilmicToneMapping,
