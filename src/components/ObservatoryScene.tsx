@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, PerformanceMonitor, Sparkles } from '@react-three/drei';
+import { Float, PerformanceMonitor, Sparkles, Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { PROJECTS, type ProjectId, type Project } from '@/lib/projects';
 import { CameraRig }      from './CameraRig';
-import { ProjectObject, PROJECT_GEOMS } from './ProjectObject';
+import { ProjectObject, PROJECT_GEOMS, PROJECT_STYLES } from './ProjectObject';
 import { Particles }      from './Particles';
 import { Nebula }         from './Nebula';
 import { PostProcessing } from './PostProcessing';
@@ -292,10 +292,13 @@ function shuffled<T>(src: readonly T[]): T[] {
 const GEO_DECK   = shuffled(Array.from({ length: EXTRA_MAX }, (_, i) => EXTRA_GEOMS[i % EXTRA_GEOMS.length]));
 const STYLE_DECK = shuffled(Array.from({ length: EXTRA_MAX }, (_, i) => EXTRA_STYLES[i % EXTRA_STYLES.length]));
 
-// Per-load distinct shapes for the three project objects, so the opening scene
-// looks different on every visit while each project keeps its identity, colour
-// and click target. Re-rolled on each module load (client-only).
-const PROJECT_GEO_DECK = shuffled(PROJECT_GEOMS);
+// Per-load distinct shapes AND material personalities for the three project
+// objects, so the opening scene looks different on every visit while each
+// project keeps its identity, colour and click target. Shape and style are
+// shuffled independently, so a project might be a chrome cloverleaf one visit
+// and a glass supershape the next. Re-rolled on each module load (client-only).
+const PROJECT_GEO_DECK   = shuffled(PROJECT_GEOMS);
+const PROJECT_STYLE_DECK = shuffled(PROJECT_STYLES);
 
 // The always-on hero centrepiece — its placement is shared so the scattered
 // crystals can be kept clear of it.
@@ -527,6 +530,17 @@ export default function ObservatoryScene() {
         <pointLight position={[-12, -4, -8]} intensity={1.1} decay={0} color="#5e7cff" />
         <pointLight position={[2, 9, 7]} intensity={0.7} decay={0} color="#ff7a3c" />
 
+        {/* Coloured reflection environment — the liquid-mercury chrome and the
+            glass objects mirror these light blobs, so they read as polished
+            metal/crystal instead of black voids. Baked once (frames={1}); it
+            only feeds reflections, the visible background stays the deep navy. */}
+        <Environment resolution={256} frames={1}>
+          <Lightformer form="circle" color="#ff2da0" intensity={3}   scale={6} position={[6, 3, 5]} />
+          <Lightformer form="circle" color="#19b6ff" intensity={2.6} scale={6} position={[-6, -1, 4]} />
+          <Lightformer form="rect"   color="#ff7a3c" intensity={2}   scale={[10, 2, 1]} position={[0, 7, -4]} />
+          <Lightformer form="circle" color="#e8ecff" intensity={1.8} scale={4} position={[0, -6, -6]} />
+        </Environment>
+
         <CameraRig selected={selected} />
 
         <HeroCrystal reduced={isMobile} />
@@ -536,8 +550,10 @@ export default function ObservatoryScene() {
             key={p.id}
             project={p}
             geom={PROJECT_GEO_DECK[i]}
+            style={PROJECT_STYLE_DECK[i]}
             selected={selected}
             onSelect={setSelected}
+            reduced={isMobile}
           />
         ))}
 
