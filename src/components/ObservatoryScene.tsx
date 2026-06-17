@@ -429,19 +429,20 @@ function FpsMeter({ onFps }: { onFps: (fps: number) => void }) {
 }
 
 // Guess whether the device is genuinely weak — NOT just whether the window is
-// small. A narrow window on a powerful desktop should still get full quality, so
-// we look at hardware signals instead of viewport width:
-//   • pointer:coarse  → touch-primary (real phone/tablet, typically fill-rate bound)
-//   • hardwareConcurrency ≤ 4 → few CPU cores
-//   • deviceMemory ≤ 4 → little RAM (Chromium-only hint)
-// PerformanceMonitor still trims DPR live afterwards, so this only sets the
-// starting point.
+// small and NOT merely whether a touchscreen exists. A narrow window on a
+// powerful desktop, or a touchscreen laptop with a trackpad, should still get
+// full quality. So the only thing that flags a device as low-power is being
+// touch-PRIMARY with no fine pointer available at all (a real phone/tablet):
+//   • pointer:coarse        → the primary pointer is a finger/stylus
+//   • !any-pointer:fine     → there is no mouse/trackpad anywhere on the device
+// hardwareConcurrency / deviceMemory were dropped: they are privacy-capped and
+// give false positives on capable 4-core desktops. PerformanceMonitor trims DPR
+// live afterwards, so a wrong guess self-corrects toward the real frame budget.
 function detectLowPower(): boolean {
   if (typeof window === 'undefined') return false;
   const coarse = matchMedia('(pointer: coarse)').matches;
-  const cores = navigator.hardwareConcurrency ?? 8;
-  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
-  return coarse || cores <= 4 || mem <= 4;
+  const hasFinePointer = matchMedia('(any-pointer: fine)').matches;
+  return coarse && !hasFinePointer;
 }
 
 export default function ObservatoryScene() {
