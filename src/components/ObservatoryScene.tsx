@@ -45,7 +45,15 @@ function gemTexture(): THREE.DataTexture {
   }
   const tex = new THREE.DataTexture(data, S, S);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 3);
+  // DataTexture defaults to NearestFilter with no mipmaps; on a torus knot whose
+  // UVs wrap many times that high-frequency interference pattern aliases into
+  // harsh ribbed/moiré bands as the surface curves away. Trilinear filtering +
+  // mipmaps + anisotropy resolve it smoothly at distance and grazing angles.
+  tex.generateMipmaps = true;
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.anisotropy = 8;
+  tex.repeat.set(2, 2);
   tex.needsUpdate = true;
   return (_gemTex = tex);
 }
