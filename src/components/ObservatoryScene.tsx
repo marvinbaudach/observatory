@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, PerformanceMonitor, Sparkles, Environment, Lightformer, MeshTransmissionMaterial } from '@react-three/drei';
+import { Float, PerformanceMonitor, Sparkles, Environment, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { PROJECTS, type ProjectId, type Project } from '@/lib/projects';
 import { CameraRig }      from './CameraRig';
@@ -124,23 +124,6 @@ const SURFACES: Record<string, SurfaceFn> = {
       r * Math.sin(theta) * Math.sin(phi),
     );
   },
-  // Glass flower blossom: a star-shaped dish pinched into petals that the
-  // transmission material reads as curved, refractive glass with each petal
-  // throwing its own chromatic edge — the centrepiece shape echoing the pmndrs
-  // glass-flower demo.
-  flower: (u, v, p) => {
-    const t = u * Math.PI, ph = v * TAU;
-    const petals = 6;
-    const petal = 0.5 + 0.5 * Math.cos(petals * ph);
-    const dish = Math.sin(t);
-    const r = 0.15 + dish * (0.85 + 0.35 * petal * petal);
-    const cup = 0.35 * Math.cos(t);
-    p.set(
-      r * Math.sin(t) * Math.cos(ph),
-      r * Math.cos(t) - cup,
-      r * Math.sin(t) * Math.sin(ph),
-    );
-  },
 };
 
 function buildSurface(fn: SurfaceFn, segU: number, segV: number): THREE.BufferGeometry {
@@ -194,13 +177,13 @@ const EXTRA_MAX = 24;
 const EXTRA_GEOMS = [
   'torusKnot', 'icosahedron', 'octahedron',
   'dodecahedron', 'tetrahedron', 'torus', 'cone', 'capsule',
-  'harmonic', 'supershape', 'klein', 'wave', 'flower',
+  'harmonic', 'supershape', 'klein', 'wave',
 ] as const;
 type ExtraGeom = (typeof EXTRA_GEOMS)[number];
 
 // The math surfaces ship with smooth vertex normals; they render best without
 // flat shading so light flows over the curvature for clean reflections.
-const SMOOTH_GEOMS = new Set<ExtraGeom>(['harmonic', 'supershape', 'klein', 'wave', 'flower']);
+const SMOOTH_GEOMS = new Set<ExtraGeom>(['harmonic', 'supershape', 'klein', 'wave']);
 
 // Material personalities, picked per object: faceted-metallic (the legacy
 // look), polished crystal (glossy clearcoat + gem texture), pure neon glow, and
@@ -228,7 +211,6 @@ function ExtraGeometry({ geo, reduced }: { geo: ExtraGeom; reduced: boolean }) {
     case 'supershape':
     case 'klein':
     case 'wave':
-    case 'flower':
       return <primitive object={mathGeometry(geo, reduced)} attach="geometry" />;
   }
 }
@@ -438,79 +420,6 @@ function HeroCrystal({ reduced }: { reduced: boolean }) {
   );
 }
 
-// A separate cluster of pure transmission-glass flower blossoms, rendered with
-// drei's MeshTransmissionMaterial à la the pmndrs glass-flower demo. Unlike the
-// frosted crystal field (which uses meshPhysicalMaterial.transmission), these
-// shoot a real FBO of the scene behind them and refract it through the thick
-// volume — giving genuine chromatic aberration at the petal edges, iridescence
-// across the surface and a wavy distortion as they turn. They are independent
-// of the Objects slider and present from the first frame so the glass effect is
-// always on show. Hand-placed clear of the hero and the project objects.
-const GLASS_FLOWERS: { pos: [number, number, number]; scale: number; rot: [number, number, number]; tint: string }[] = [
-  { pos: [-7.5, 2.2, -3],   scale: 1.5, rot: [0.3, 0.6, 0.2], tint: '#ffd9b0' },
-  { pos: [ 6.8, -1.6, 4.5], scale: 1.2, rot: [-0.4, 1.1, 0],  tint: '#cfe0ff' },
-  { pos: [-4, -2.8, 6],     scale: 1.35, rot: [0.5, -0.5, 0.3], tint: '#ffc6e6' },
-];
-
-function GlassBloom({ reduced }: { reduced: boolean }) {
-  const spin = useRef<THREE.Group>(null);
-  useFrame((_, delta) => {
-    if (spin.current) spin.current.rotation.y += delta * 0.05;
-  });
-  return (
-    <group ref={spin}>
-      {GLASS_FLOWERS.map((f, i) => (
-        <Float key={i} speed={0.8} rotationIntensity={0.4} floatIntensity={0.5} floatingRange={[-0.2, 0.2]}>
-          <mesh position={f.pos} rotation={f.rot} scale={f.scale}>
-            <primitive object={mathGeometry('flower', reduced)} attach="geometry" />
-            {reduced ? (
-              <meshPhysicalMaterial
-                color="#ffffff"
-                transmission={1}
-                transparent
-                opacity={0.6}
-                roughness={0.25}
-                ior={1.5}
-                thickness={0.5}
-                clearcoat={1}
-                attenuationColor={f.tint}
-                attenuationDistance={4}
-                side={THREE.DoubleSide}
-              />
-            ) : (
-              <MeshTransmissionMaterial
-                background={undefined}
-                samples={8}
-                resolution={512}
-                transmission={1}
-                roughness={0.05}
-                thickness={0.2}
-                backside
-                backsideThickness={1}
-                ior={1.5}
-                chromaticAberration={0.5}
-                anisotropicBlur={0.1}
-                distortion={0.3}
-                distortionScale={0.3}
-                temporalDistortion={0.1}
-                clearcoat={1}
-                clearcoatRoughness={0.05}
-                attenuationColor={f.tint}
-                attenuationDistance={5}
-                iridescence={1}
-                iridescenceIOR={1}
-                iridescenceThicknessRange={[0, 1400]}
-                envMapIntensity={0.5}
-                side={THREE.DoubleSide}
-              />
-            )}
-          </mesh>
-        </Float>
-      ))}
-    </group>
-  );
-}
-
 
 // Lives inside the Canvas: useFrame ticks once per rendered frame, so counting
 // ticks over a 250ms window gives the real render FPS. Throttled to ~4 updates/s
@@ -638,7 +547,6 @@ export default function ObservatoryScene() {
         <CameraRig selected={selected} />
 
         <HeroCrystal reduced={isMobile} />
-        <GlassBloom reduced={isMobile} />
 
         {PROJECTS.map((p, i) => (
           <ProjectObject
