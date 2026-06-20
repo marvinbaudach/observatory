@@ -57,6 +57,28 @@ const SHAPES = {
     const r = 1 + 0.18 * Math.sin(7 * ph) * Math.sin(6 * t);
     p.set(r * Math.sin(t) * Math.cos(ph), r * Math.cos(t), r * Math.sin(t) * Math.sin(ph));
   },
+  // Glass flower: a star-shaped dish whose radius is pinched into N petals. u
+  // sweeps the dish from the centre (flat) to the rim (open), v sweeps around;
+  // the petal count and petal depth shape a blossom that the transmission
+  // material reads as curved, refractive glass with each petal throwing its own
+  // chromatic edge.
+  flower: (u, v, p) => {
+    const t = u * PI, ph = v * TAU;
+    const petals = 6;
+    // Petal silhouette: radius swells at the rim, pinches at the seams between
+    // petals. pow concentrates the bulge toward the petal centres.
+    const petal = 0.5 + 0.5 * Math.cos(petals * ph);
+    const dish = Math.sin(t);               // 0 at pole, 1 at rim → flat centre, open edge
+    const r = 0.15 + dish * (0.85 + 0.35 * petal * petal);
+    // Curl the rim upward into a cupped blossom so the petals cup light rather
+    // than lying flat.
+    const cup = 0.35 * Math.cos(t);
+    p.set(
+      r * Math.sin(t) * Math.cos(ph),
+      r * Math.cos(t) - cup,
+      r * Math.sin(t) * Math.sin(ph),
+    );
+  },
 } satisfies Record<string, SurfaceFn>;
 
 export type ShapeName = keyof typeof SHAPES;
@@ -64,7 +86,7 @@ export const SHAPE_NAMES = Object.keys(SHAPES) as ShapeName[];
 
 // Everything but the spiky supershape renders best smooth, so light flows over
 // the curvature; the supershape wants flat shading for its cut-gem ridges.
-export const SMOOTH_SHAPES = new Set<ShapeName>(['blob', 'orbitalD4', 'orbitalF6', 'wave']);
+export const SMOOTH_SHAPES = new Set<ShapeName>(['blob', 'orbitalD4', 'orbitalF6', 'wave', 'flower']);
 
 function buildShape(fn: SurfaceFn, seg: number): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();

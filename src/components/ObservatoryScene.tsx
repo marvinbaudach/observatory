@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, PerformanceMonitor, Sparkles, Environment, Lightformer } from '@react-three/drei';
+import { Float, PerformanceMonitor, Sparkles, Environment, Lightformer, MeshTransmissionMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { PROJECTS, type ProjectId, type Project } from '@/lib/projects';
 import { CameraRig }      from './CameraRig';
@@ -124,6 +124,23 @@ const SURFACES: Record<string, SurfaceFn> = {
       r * Math.sin(theta) * Math.sin(phi),
     );
   },
+  // Glass flower blossom: a star-shaped dish pinched into petals that the
+  // transmission material reads as curved, refractive glass with each petal
+  // throwing its own chromatic edge — the centrepiece shape echoing the pmndrs
+  // glass-flower demo.
+  flower: (u, v, p) => {
+    const t = u * Math.PI, ph = v * TAU;
+    const petals = 6;
+    const petal = 0.5 + 0.5 * Math.cos(petals * ph);
+    const dish = Math.sin(t);
+    const r = 0.15 + dish * (0.85 + 0.35 * petal * petal);
+    const cup = 0.35 * Math.cos(t);
+    p.set(
+      r * Math.sin(t) * Math.cos(ph),
+      r * Math.cos(t) - cup,
+      r * Math.sin(t) * Math.sin(ph),
+    );
+  },
 };
 
 function buildSurface(fn: SurfaceFn, segU: number, segV: number): THREE.BufferGeometry {
@@ -177,13 +194,13 @@ const EXTRA_MAX = 24;
 const EXTRA_GEOMS = [
   'torusKnot', 'icosahedron', 'octahedron',
   'dodecahedron', 'tetrahedron', 'torus', 'cone', 'capsule',
-  'harmonic', 'supershape', 'klein', 'wave',
+  'harmonic', 'supershape', 'klein', 'wave', 'flower',
 ] as const;
 type ExtraGeom = (typeof EXTRA_GEOMS)[number];
 
 // The math surfaces ship with smooth vertex normals; they render best without
 // flat shading so light flows over the curvature for clean reflections.
-const SMOOTH_GEOMS = new Set<ExtraGeom>(['harmonic', 'supershape', 'klein', 'wave']);
+const SMOOTH_GEOMS = new Set<ExtraGeom>(['harmonic', 'supershape', 'klein', 'wave', 'flower']);
 
 // Material personalities, picked per object: faceted-metallic (the legacy
 // look), polished crystal (glossy clearcoat + gem texture), pure neon glow, and
@@ -211,6 +228,7 @@ function ExtraGeometry({ geo, reduced }: { geo: ExtraGeom; reduced: boolean }) {
     case 'supershape':
     case 'klein':
     case 'wave':
+    case 'flower':
       return <primitive object={mathGeometry(geo, reduced)} attach="geometry" />;
   }
 }
@@ -225,7 +243,6 @@ function ExtraMaterial({ style, color, lum, reduced, smooth = false }: { style: 
     style === 'diamond' ? 0          :  // clearest — pure refraction, no glow
     style === 'crystal' ? 0.45 * lum :
                           0.6 * lum;     // facet
-  const dispersion = style === 'diamond' ? 3 : 1.2;
 
   // Mobile: the transmission pass is too heavy, so phones get a cheap translucent
   // flat-shaded stand-in instead of real frosted glass.
@@ -245,29 +262,37 @@ function ExtraMaterial({ style, color, lum, reduced, smooth = false }: { style: 
     );
   }
 
-  // Desktop: real frosted, cut crystal. transmission + high roughness blurs
-  // whatever is behind the facets; flatShading gives the sharp cut-gem silhouette;
-  // the object colour tints the transmitted light via attenuation.
+  // Desktop: real transmission glass à la the pmndrs glass-flower demo. drei's
+  // MeshTransmissionMaterial refracts the scene through the (thick) volume with
+  // chromatic aberration at the edges and iridescence across the facets — the
+  // neon/diamond variants just vary the inner glow and the dispersion fire.
   return (
-    <meshPhysicalMaterial
-      color="#ffffff"
+    <MeshTransmissionMaterial
+      background={undefined}
+      samples={style === 'diamond' ? 8 : 6}
+      resolution={512}
       transmission={1}
-      transparent
-      opacity={1}
-      ior={1.6}
-      thickness={1.4}
-      roughness={0.5}
+      roughness={0.42}
       roughnessMap={gem}
-      metalness={0}
+      thickness={1.4}
+      backside
+      backsideThickness={0.8}
+      ior={1.6}
+      chromaticAberration={style === 'diamond' ? 0.9 : 0.5}
+      anisotropicBlur={0.1}
+      distortion={0.25}
+      distortionScale={0.3}
+      temporalDistortion={0.08}
       clearcoat={1}
       clearcoatRoughness={0.18}
       attenuationColor={color}
       attenuationDistance={3.5}
-      dispersion={dispersion}
+      iridescence={1}
+      iridescenceIOR={1.15}
+      iridescenceThicknessRange={[0, 900]}
       specularIntensity={1}
       emissive={color}
       emissiveIntensity={emissiveIntensity}
-      flatShading={!smooth}
       // Draw inner/back faces too — otherwise the near, viewer-facing half is
       // pure see-through glass with nothing rendered behind it, so you look
       // straight through it to the lit far half and it appears to vanish.
