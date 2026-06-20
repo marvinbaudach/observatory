@@ -114,7 +114,7 @@ function buildShape(fn: SurfaceFn, seg: number): THREE.BufferGeometry {
   geo.computeVertexNormals();
   geo.center();
   geo.computeBoundingSphere();
-  const rad = geo.boundingSphere?.radius || 1;
+  const rad = geo.boundingSphere?.radius ?? 1;
   geo.scale(1.15 / rad, 1.15 / rad, 1.15 / rad); // normalise every shape to ~unit size
   return geo;
 }

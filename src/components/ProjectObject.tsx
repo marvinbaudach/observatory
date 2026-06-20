@@ -1,8 +1,8 @@
 'use client';
 
 import { useRef } from 'react';
-import { Float, MeshTransmissionMaterial } from '@react-three/drei';
-import { useFrame, type ThreeElements } from '@react-three/fiber';
+import { Float } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Project, ProjectId } from '@/lib/projects';
 import { buildShapeGeometry, SHAPE_NAMES, SMOOTH_SHAPES, type ShapeName } from '@/lib/shapes';
@@ -239,42 +239,28 @@ function ProjectMaterial({
           />
         );
       }
-      // Real transmission glass à la the pmndrs glass-flower demo: drei's
-      // MeshTransmissionMaterial renders an FBO of the scene behind the mesh and
-      // refracts it through the (thick) volume, adding chromatic aberration at the
-      // edges and iridescence across the surface — far richer than
-      // meshPhysicalMaterial.transmission, which only fakes thickness via opacity.
       return (
-        <MeshTransmissionMaterial
-          // MeshTransmissionMaterial wraps a MeshPhysicalMaterial (which extends
-          // MeshStandardMaterial), so the shared emissiveIntensity the selection
-          // animation drives still resolves here. Cast through unknown because
-          // drei's forward-ref type is its *props*, not the instance type.
-          ref={matRef as unknown as React.Ref<ThreeElements['meshTransmissionMaterial']>}
-          background={undefined}
-          samples={6}
-          resolution={512}
+        <meshPhysicalMaterial
+          // meshPhysicalMaterial extends Standard, so the emissive ref still works.
+          ref={matRef}
+          color="#ffffff"
           transmission={1}
-          roughness={0.08}
-          thickness={1.2}
-          backside
-          backsideThickness={0.6}
+          transparent
+          opacity={1}
           ior={1.5}
-          chromaticAberration={0.6}
-          anisotropicBlur={0.1}
-          distortion={0.2}
-          distortionScale={0.3}
-          temporalDistortion={0.1}
+          thickness={1.4}
+          roughness={0.18}
+          roughnessMap={gemTex}
+          metalness={0}
           clearcoat={1}
-          clearcoatRoughness={0.12}
+          clearcoatRoughness={0.16}
           attenuationColor={project.emissiveColor}
           attenuationDistance={2.5}
-          iridescence={1}
-          iridescenceIOR={1.2}
-          iridescenceThicknessRange={[0, 800]}
-          envMapIntensity={1.2}
+          dispersion={1.6}
           emissive={project.emissiveColor}
           emissiveIntensity={base}
+          envMapIntensity={1.4}
+          flatShading={!smooth}
           side={THREE.DoubleSide}
         />
       );

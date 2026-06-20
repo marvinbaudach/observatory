@@ -169,7 +169,7 @@ function buildSurface(fn: SurfaceFn, segU: number, segV: number): THREE.BufferGe
   geo.computeVertexNormals();
   geo.center();
   geo.computeBoundingSphere();
-  const r = geo.boundingSphere?.radius || 1;
+  const r = geo.boundingSphere?.radius ?? 1;
   geo.scale(1.1 / r, 1.1 / r, 1.1 / r); // normalise every surface to ~unit size
   return geo;
 }
@@ -243,6 +243,7 @@ function ExtraMaterial({ style, color, lum, reduced, smooth = false }: { style: 
     style === 'diamond' ? 0          :  // clearest — pure refraction, no glow
     style === 'crystal' ? 0.45 * lum :
                           0.6 * lum;     // facet
+  const dispersion = style === 'diamond' ? 3 : 1.2;
 
   // Mobile: the transmission pass is too heavy, so phones get a cheap translucent
   // flat-shaded stand-in instead of real frosted glass.
@@ -262,37 +263,29 @@ function ExtraMaterial({ style, color, lum, reduced, smooth = false }: { style: 
     );
   }
 
-  // Desktop: real transmission glass à la the pmndrs glass-flower demo. drei's
-  // MeshTransmissionMaterial refracts the scene through the (thick) volume with
-  // chromatic aberration at the edges and iridescence across the facets — the
-  // neon/diamond variants just vary the inner glow and the dispersion fire.
+  // Desktop: real frosted, cut crystal. transmission + high roughness blurs
+  // whatever is behind the facets; flatShading gives the sharp cut-gem silhouette;
+  // the object colour tints the transmitted light via attenuation.
   return (
-    <MeshTransmissionMaterial
-      background={undefined}
-      samples={style === 'diamond' ? 8 : 6}
-      resolution={512}
+    <meshPhysicalMaterial
+      color="#ffffff"
       transmission={1}
-      roughness={0.42}
-      roughnessMap={gem}
-      thickness={1.4}
-      backside
-      backsideThickness={0.8}
+      transparent
+      opacity={1}
       ior={1.6}
-      chromaticAberration={style === 'diamond' ? 0.9 : 0.5}
-      anisotropicBlur={0.1}
-      distortion={0.25}
-      distortionScale={0.3}
-      temporalDistortion={0.08}
+      thickness={1.4}
+      roughness={0.5}
+      roughnessMap={gem}
+      metalness={0}
       clearcoat={1}
       clearcoatRoughness={0.18}
       attenuationColor={color}
       attenuationDistance={3.5}
-      iridescence={1}
-      iridescenceIOR={1.15}
-      iridescenceThicknessRange={[0, 900]}
+      dispersion={dispersion}
       specularIntensity={1}
       emissive={color}
       emissiveIntensity={emissiveIntensity}
+      flatShading={!smooth}
       // Draw inner/back faces too — otherwise the near, viewer-facing half is
       // pure see-through glass with nothing rendered behind it, so you look
       // straight through it to the lit far half and it appears to vanish.
@@ -445,6 +438,79 @@ function HeroCrystal({ reduced }: { reduced: boolean }) {
   );
 }
 
+// A separate cluster of pure transmission-glass flower blossoms, rendered with
+// drei's MeshTransmissionMaterial à la the pmndrs glass-flower demo. Unlike the
+// frosted crystal field (which uses meshPhysicalMaterial.transmission), these
+// shoot a real FBO of the scene behind them and refract it through the thick
+// volume — giving genuine chromatic aberration at the petal edges, iridescence
+// across the surface and a wavy distortion as they turn. They are independent
+// of the Objects slider and present from the first frame so the glass effect is
+// always on show. Hand-placed clear of the hero and the project objects.
+const GLASS_FLOWERS: { pos: [number, number, number]; scale: number; rot: [number, number, number]; tint: string }[] = [
+  { pos: [-7.5, 2.2, -3],   scale: 1.5, rot: [0.3, 0.6, 0.2], tint: '#ffd9b0' },
+  { pos: [ 6.8, -1.6, 4.5], scale: 1.2, rot: [-0.4, 1.1, 0],  tint: '#cfe0ff' },
+  { pos: [-4, -2.8, 6],     scale: 1.35, rot: [0.5, -0.5, 0.3], tint: '#ffc6e6' },
+];
+
+function GlassBloom({ reduced }: { reduced: boolean }) {
+  const spin = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (spin.current) spin.current.rotation.y += delta * 0.05;
+  });
+  return (
+    <group ref={spin}>
+      {GLASS_FLOWERS.map((f, i) => (
+        <Float key={i} speed={0.8} rotationIntensity={0.4} floatIntensity={0.5} floatingRange={[-0.2, 0.2]}>
+          <mesh position={f.pos} rotation={f.rot} scale={f.scale}>
+            <primitive object={mathGeometry('flower', reduced)} attach="geometry" />
+            {reduced ? (
+              <meshPhysicalMaterial
+                color="#ffffff"
+                transmission={1}
+                transparent
+                opacity={0.6}
+                roughness={0.25}
+                ior={1.5}
+                thickness={0.5}
+                clearcoat={1}
+                attenuationColor={f.tint}
+                attenuationDistance={4}
+                side={THREE.DoubleSide}
+              />
+            ) : (
+              <MeshTransmissionMaterial
+                background={undefined}
+                samples={8}
+                resolution={512}
+                transmission={1}
+                roughness={0.05}
+                thickness={0.2}
+                backside
+                backsideThickness={1}
+                ior={1.5}
+                chromaticAberration={0.5}
+                anisotropicBlur={0.1}
+                distortion={0.3}
+                distortionScale={0.3}
+                temporalDistortion={0.1}
+                clearcoat={1}
+                clearcoatRoughness={0.05}
+                attenuationColor={f.tint}
+                attenuationDistance={5}
+                iridescence={1}
+                iridescenceIOR={1}
+                iridescenceThicknessRange={[0, 1400]}
+                envMapIntensity={0.5}
+                side={THREE.DoubleSide}
+              />
+            )}
+          </mesh>
+        </Float>
+      ))}
+    </group>
+  );
+}
+
 
 // Lives inside the Canvas: useFrame ticks once per rendered frame, so counting
 // ticks over a 250ms window gives the real render FPS. Throttled to ~4 updates/s
@@ -516,7 +582,7 @@ export default function ObservatoryScene() {
       if (e.key === 'Escape') setSelected(null);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); };
   }, []);
 
   // Writes happen only on real user changes; the value is restored in the
@@ -542,13 +608,13 @@ export default function ObservatoryScene() {
           antialias: !isMobile,
         }}
         style={{ background: '#04030f' }}
-        onClick={() => setSelected(null)}
+        onClick={() => { setSelected(null); }}
       >
         {/* Auto-adaptive quality: scale DPR by the live performance factor so a
             struggling device backs off and a fast one climbs toward native. */}
         <PerformanceMonitor
           onChange={({ factor }) =>
-            setDpr(Math.round((0.75 + (isMobile ? 0.75 : 1.25) * factor) * 10) / 10)
+            { setDpr(Math.round((0.75 + (isMobile ? 0.75 : 1.25) * factor) * 10) / 10); }
           }
         />
         <FpsMeter onFps={setFps} />
@@ -572,6 +638,7 @@ export default function ObservatoryScene() {
         <CameraRig selected={selected} />
 
         <HeroCrystal reduced={isMobile} />
+        <GlassBloom reduced={isMobile} />
 
         {PROJECTS.map((p, i) => (
           <ProjectObject
@@ -617,7 +684,7 @@ export default function ObservatoryScene() {
             className="obs-range"
             type="range"
             min={0} max={extraMax} step={1} value={extra}
-            onChange={(e) => changeExtra(parseInt(e.target.value, 10))}
+            onChange={(e) => { changeExtra(parseInt(e.target.value, 10)); }}
             aria-label="Objects"
           />
           <span className="obs-panel__val">{extra}</span>
@@ -628,7 +695,7 @@ export default function ObservatoryScene() {
         </div>
       </div>
 
-      <InfoPanel project={selectedProject} onClose={() => setSelected(null)} />
+      <InfoPanel project={selectedProject} onClose={() => { setSelected(null); }} />
     </div>
   );
 }
