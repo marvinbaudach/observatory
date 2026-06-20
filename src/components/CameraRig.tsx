@@ -34,7 +34,7 @@ export function CameraRig({ selected }: Props) {
   // Place the camera at the start pose synchronously before the first paint —
   // useEffect runs after paint, which let one frame render at the overview pose.
   useLayoutEffect(() => {
-    controlsRef.current?.setLookAt(...INTRO_FROM.position, ...INTRO_FROM.target, false);
+    void controlsRef.current?.setLookAt(...INTRO_FROM.position, ...INTRO_FROM.target, false);
   }, []);
 
   // Drive the intro with our own eased tween for full control over the curve.
@@ -48,7 +48,7 @@ export function CameraRig({ selected }: Props) {
     const px = THREE.MathUtils.lerp(INTRO_FROM.position[0], OVERVIEW.position[0], e);
     const py = THREE.MathUtils.lerp(INTRO_FROM.position[1], OVERVIEW.position[1], e);
     const pz = THREE.MathUtils.lerp(INTRO_FROM.position[2], OVERVIEW.position[2], e);
-    ctrl.setLookAt(px, py, pz, OVERVIEW.target[0], OVERVIEW.target[1], OVERVIEW.target[2], false);
+    void ctrl.setLookAt(px, py, pz, OVERVIEW.target[0], OVERVIEW.target[1], OVERVIEW.target[2], false);
 
     if (introT.current >= 1) setIntroActive(false);
   });
@@ -60,14 +60,16 @@ export function CameraRig({ selected }: Props) {
     if (!ctrl) return;
 
     if (selected) {
-      const p = PROJECTS.find(pr => pr.id === selected)!;
-      ctrl.setLookAt(
-        p.position[0], p.position[1], p.position[2] + 3.5,
-        p.position[0], p.position[1], p.position[2],
-        true
-      );
+      const p = PROJECTS.find(pr => pr.id === selected);
+      if (p) {
+        void ctrl.setLookAt(
+          p.position[0], p.position[1], p.position[2] + 3.5,
+          p.position[0], p.position[1], p.position[2],
+          true
+        );
+      }
     } else {
-      ctrl.setLookAt(...OVERVIEW.position, ...OVERVIEW.target, true);
+      void ctrl.setLookAt(...OVERVIEW.position, ...OVERVIEW.target, true);
     }
   }, [selected, introActive]);
 

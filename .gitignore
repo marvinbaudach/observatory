@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Claude Code local tooling
 .claude/
+
+# husky internals (the hooks themselves in .husky/ are committed)
+.husky/_
