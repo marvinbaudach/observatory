@@ -423,6 +423,24 @@ html, body {
   .info-panel--visible { transform: none; }
 }
 
+/* ── Short landscape (phones on their side) ──────────────────────
+   The wordmark, the three-item project index and the stacked Display panel
+   need ~400px of height, so on a 360-430px viewport they collide. Tighten the
+   HUD, lay the Display panel out as one row, and, as on the bottom-sheet
+   layout, hide it while a project panel is open. */
+@media (max-height: 480px) {
+  .obs-hud { top: 1rem; gap: 0.8rem; }
+  .obs-hint { display: none; }
+  .obs-panel {
+    bottom: 1rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 16px;
+  }
+  .obs-root[data-selected] .obs-panel { visibility: hidden; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .info-panel { transition: opacity 0.15s linear; }
   .obs-hint { animation: none; }
