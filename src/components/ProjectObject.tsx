@@ -5,6 +5,7 @@ import { Float } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Project, ProjectId } from '@/lib/projects';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 import { buildShapeGeometry, SHAPE_NAMES, SMOOTH_SHAPES, type ShapeName } from '@/lib/shapes';
 
 // Procedural surface texture, generated once and shared by all objects. The
@@ -118,6 +119,7 @@ export function ProjectObject({ project, selected, onSelect, geom, style = 'plas
   const meshRef  = useRef<THREE.Mesh>(null);
   const matRef   = useRef<THREE.MeshStandardMaterial>(null);
   const lightRef = useRef<THREE.PointLight>(null);
+  const still    = usePrefersReducedMotion();
   const noiseTex = surfaceTexture();
   const gemTex   = gemTexture();
 
@@ -150,7 +152,7 @@ export function ProjectObject({ project, selected, onSelect, geom, style = 'plas
 
   return (
     <Float
-      speed={project.floatSpeed}
+      speed={still ? 0 : project.floatSpeed}
       rotationIntensity={0.5}
       floatIntensity={0.4}
       floatingRange={[-0.12, 0.12]}

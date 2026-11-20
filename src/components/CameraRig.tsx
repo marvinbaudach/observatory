@@ -1,16 +1,28 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { CameraControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { ProjectId } from '@/lib/projects';
 import { PROJECTS } from '@/lib/projects';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 
-const OVERVIEW = {
-  position: [0, 1.5, 12] as [number, number, number],
-  target:   [0, 0,    0] as [number, number, number],
-};
+const OVERVIEW_HEIGHT = 1.5;
+const OVERVIEW_MIN_DISTANCE = 12;
+const OVERVIEW_HALF_WIDTH = 5.4;   // all three projects (x = ±4, radius ~1.3) stay inside the frame
+const FOCUS_MIN_DISTANCE = 3.5;
+const FOCUS_HALF_WIDTH = 1.9;      // a selected object (radius ~1.5) fits the frame width
+const OVERVIEW_TARGET: [number, number, number] = [0, 0, 0];
+const MAX_DISTANCE_FLOOR = 22;
+const MAX_DISTANCE_MARGIN = 4;
+
+// Distance at which a given half-width of the scene fills the horizontal field
+// of view. Wide screens keep the fixed minimum; a portrait phone backs off.
+function fitDistance(fovDeg: number, aspect: number, halfWidth: number, minDistance: number): number {
+  const halfH = Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2);
+  return Math.max(minDistance, halfWidth / (halfH * aspect));
+}
 
 // Cinematic fly-in start pose: far, high and offset for an arc-like approach.
 const INTRO_FROM = {
@@ -28,14 +40,26 @@ interface Props { selected: ProjectId | null; }
 
 export function CameraRig({ selected }: Props) {
   const controlsRef = useRef<CameraControls>(null);
-  const [introActive, setIntroActive] = useState(true);
+  const reducedMotion = usePrefersReducedMotion();
+  // Reduced motion starts at the overview pose; no fly-in.
+  const [startsWithIntro] = useState(!reducedMotion);
+  const [introActive, setIntroActive] = useState(startsWithIntro);
   const introT = useRef(0);
+
+  const fov = useThree(s => (s.camera as THREE.PerspectiveCamera).fov);
+  // Guard the first render, before the canvas has been measured (0 / 0).
+  const aspect = useThree(s => (s.size.height > 0 ? s.size.width / s.size.height : 1));
+  const overviewDistance = fitDistance(fov, aspect, OVERVIEW_HALF_WIDTH, OVERVIEW_MIN_DISTANCE);
+  const focusDistance = fitDistance(fov, aspect, FOCUS_HALF_WIDTH, FOCUS_MIN_DISTANCE);
+  const overviewDistanceRef = useRef(overviewDistance);
+  useLayoutEffect(() => { overviewDistanceRef.current = overviewDistance; }, [overviewDistance]);
 
   // Place the camera at the start pose synchronously before the first paint —
   // useEffect runs after paint, which let one frame render at the overview pose.
   useLayoutEffect(() => {
-    void controlsRef.current?.setLookAt(...INTRO_FROM.position, ...INTRO_FROM.target, false);
-  }, []);
+    const pose = startsWithIntro ? INTRO_FROM.position : [0, OVERVIEW_HEIGHT, overviewDistanceRef.current];
+    void controlsRef.current?.setLookAt(pose[0], pose[1], pose[2], ...INTRO_FROM.target, false);
+  }, [startsWithIntro]);
 
   // Drive the intro with our own eased tween for full control over the curve.
   useFrame((_, delta) => {
@@ -45,10 +69,10 @@ export function CameraRig({ selected }: Props) {
 
     introT.current = Math.min(introT.current + delta / INTRO_DURATION, 1);
     const e = easeInOutCubic(introT.current);
-    const px = THREE.MathUtils.lerp(INTRO_FROM.position[0], OVERVIEW.position[0], e);
-    const py = THREE.MathUtils.lerp(INTRO_FROM.position[1], OVERVIEW.position[1], e);
-    const pz = THREE.MathUtils.lerp(INTRO_FROM.position[2], OVERVIEW.position[2], e);
-    void ctrl.setLookAt(px, py, pz, OVERVIEW.target[0], OVERVIEW.target[1], OVERVIEW.target[2], false);
+    const px = THREE.MathUtils.lerp(INTRO_FROM.position[0], 0, e);
+    const py = THREE.MathUtils.lerp(INTRO_FROM.position[1], OVERVIEW_HEIGHT, e);
+    const pz = THREE.MathUtils.lerp(INTRO_FROM.position[2], overviewDistanceRef.current, e);
+    void ctrl.setLookAt(px, py, pz, ...OVERVIEW_TARGET, false);
 
     if (introT.current >= 1) setIntroActive(false);
   });
@@ -59,19 +83,20 @@ export function CameraRig({ selected }: Props) {
     const ctrl = controlsRef.current;
     if (!ctrl) return;
 
+    const animate = !reducedMotion;
     if (selected) {
       const p = PROJECTS.find(pr => pr.id === selected);
       if (p) {
         void ctrl.setLookAt(
-          p.position[0], p.position[1], p.position[2] + 3.5,
+          p.position[0], p.position[1], p.position[2] + focusDistance,
           p.position[0], p.position[1], p.position[2],
-          true
+          animate
         );
       }
     } else {
-      void ctrl.setLookAt(...OVERVIEW.position, ...OVERVIEW.target, true);
+      void ctrl.setLookAt(0, OVERVIEW_HEIGHT, overviewDistance, ...OVERVIEW_TARGET, animate);
     }
-  }, [selected, introActive]);
+  }, [selected, introActive, reducedMotion, focusDistance, overviewDistance]);
 
   return (
     <CameraControls
@@ -79,7 +104,7 @@ export function CameraRig({ selected }: Props) {
       makeDefault
       enabled={selected === null && !introActive}
       minDistance={3}
-      maxDistance={22}
+      maxDistance={Math.max(MAX_DISTANCE_FLOOR, overviewDistance + MAX_DISTANCE_MARGIN)}
       dampingFactor={0.06}
     />
   );

@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTimeUniform } from '@/lib/useTimeUniform';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 
 const DUST_COUNT = 500;
 
@@ -60,6 +61,7 @@ function DustParticles() {
 }
 
 export function Particles({ reduced = false }: { reduced?: boolean }) {
+  const still = usePrefersReducedMotion();
   return (
     <>
       <Stars
@@ -69,7 +71,7 @@ export function Particles({ reduced = false }: { reduced?: boolean }) {
         factor={4}
         saturation={0}
         fade
-        speed={0.4}
+        speed={still ? 0 : 0.4}
       />
       <DustParticles />
     </>

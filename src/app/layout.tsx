@@ -16,13 +16,13 @@ const mono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Observatory — Interactive 3D Portfolio',
-  description: 'Interactive 3D scene built with React Three Fiber — explore projects floating in space',
+  title: 'Observatory: interaktive 3D-Szene',
+  description: 'Interaktive 3D-Szene mit React Three Fiber. Drei Projekte schweben im Raum und lassen sich anklicken.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${serif.variable} ${mono.variable}`}>
+    <html lang="de" className={`${serif.variable} ${mono.variable}`}>
       <body>{children}</body>
     </html>
   );

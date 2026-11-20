@@ -18,7 +18,7 @@ export const PROJECTS: Project[] = [
   {
     id: 'solari',
     title: 'Swiss Departure Board',
-    description: 'Echtzeit-Abfahrtsboard im Split-Flap-Stil. Stationssuche, Favoriten, live Countdown — alles im Amber-auf-Schwarz-Look klassischer Bahnhofstafeln.',
+    description: 'Echtzeit-Abfahrtsboard im Split-Flap-Stil. Stationssuche, Favoriten, Live-Countdown. Alles im Amber-auf-Schwarz-Look klassischer Bahnhofstafeln.',
     tags: ['Next.js', 'TypeScript', 'CSS Animations'],
     url: 'https://marvinbaudach.github.io/solari-board/',
     position: [-4, 0.5, 0],
@@ -42,7 +42,7 @@ export const PROJECTS: Project[] = [
   {
     id: 'observatory',
     title: 'Observatory',
-    description: 'Dieses Projekt. Interaktive 3D-Szene mit React Three Fiber — domain-warped Partikel, Bloom-Postprocessing und smooth Kameraflüge zu jedem Objekt.',
+    description: 'Dieses Projekt. Interaktive 3D-Szene mit React Three Fiber: Nebel aus domain-warped FBM-Rauschen, Bloom-Postprocessing und Kameraflüge zu den Projekten.',
     tags: ['React Three Fiber', 'Three.js', 'GLSL'],
     url: 'https://marvinbaudach.github.io/observatory/',
     position: [0, 2.5, -2],

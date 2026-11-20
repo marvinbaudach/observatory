@@ -11,15 +11,18 @@ import { Particles }      from './Particles';
 import { Nebula }         from './Nebula';
 import { PostProcessing } from './PostProcessing';
 import { InfoPanel }      from './InfoPanel';
+import { ProjectIndex }   from './ProjectIndex';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 
 // Orbiting key light — decay=0 so it actually reaches the objects (a default
 // point light falls off as 1/d² and was effectively invisible at this scale).
 // Its motion sweeps specular highlights across the textured, metallic facets.
 function OrbitLight({ color }: { color: string }) {
   const ref = useRef<THREE.PointLight>(null);
+  const still = usePrefersReducedMotion();
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    const t = clock.elapsedTime * 0.4;
+    const t = still ? 0 : clock.elapsedTime * 0.4;
     ref.current.position.set(Math.cos(t) * 9, Math.sin(t * 0.7) * 6 + 2, Math.sin(t) * 9);
   });
   return <pointLight ref={ref} intensity={2.6} decay={0} color={color} />;
@@ -347,15 +350,17 @@ const EXTRA_POOL = (() => {
 // are revealed — adding objects literally adds light to the scene.
 function ExtraLight({ count }: { count: number }) {
   const ref = useRef<THREE.PointLight>(null);
+  const still = usePrefersReducedMotion();
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    const t = clock.elapsedTime * 0.6;
+    const t = still ? 0 : clock.elapsedTime * 0.6;
     ref.current.position.set(Math.sin(t) * 7, Math.cos(t * 1.3) * 5, Math.cos(t) * 7);
   });
   return <pointLight ref={ref} decay={0} intensity={Math.min(count, EXTRA_MAX) * 0.18} color="#ff4fd8" />;
 }
 
 function ExtraField({ count, reduced }: { count: number; reduced: boolean }) {
+  const still = usePrefersReducedMotion();
   if (count <= 0) return null;
   return (
     <>
@@ -364,12 +369,12 @@ function ExtraField({ count, reduced }: { count: number; reduced: boolean }) {
         count={Math.min(count, EXTRA_MAX) * (reduced ? 4 : 9)}
         scale={[26, 13, 26]}
         size={3}
-        speed={0.3}
+        speed={still ? 0 : 0.3}
         opacity={0.5}
         color="#bcd2ff"
       />
       {EXTRA_POOL.slice(0, count).map((d, i) => (
-        <Float key={i} speed={d.speed} rotationIntensity={0.5} floatIntensity={0.4} floatingRange={[-0.15, 0.15]}>
+        <Float key={i} speed={still ? 0 : d.speed} rotationIntensity={0.5} floatIntensity={0.4} floatingRange={[-0.15, 0.15]}>
           <mesh position={d.pos} rotation={d.rot} scale={d.scale}>
             <ExtraGeometry geo={d.geo} reduced={reduced} />
             <ExtraMaterial style={d.style} color={d.color} lum={d.lum} reduced={reduced} smooth={SMOOTH_GEOMS.has(d.geo)} />
@@ -400,12 +405,13 @@ function ExtraField({ count, reduced }: { count: number; reduced: boolean }) {
 // the hero of the scene and is present from the very first frame.
 function HeroCrystal({ reduced }: { reduced: boolean }) {
   const spin = useRef<THREE.Group>(null);
+  const still = usePrefersReducedMotion();
   useFrame((_, delta) => {
-    if (spin.current) spin.current.rotation.y += delta * 0.12;
+    if (spin.current && !still) spin.current.rotation.y += delta * 0.12;
   });
   return (
     <group position={HERO_POS}>
-      <Float speed={1} rotationIntensity={0.35} floatIntensity={0.4} floatingRange={[-0.18, 0.18]}>
+      <Float speed={still ? 0 : 1} rotationIntensity={0.35} floatIntensity={0.4} floatingRange={[-0.18, 0.18]}>
         <group ref={spin}>
           <mesh scale={HERO_SCALE}>
             <torusKnotGeometry args={[0.6, 0.22, reduced ? 128 : 240, reduced ? 16 : 32]} />
@@ -502,7 +508,7 @@ export default function ObservatoryScene() {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100svh' }}>
+    <div className="obs-root" data-selected={selected ? '' : undefined} style={{ position: 'relative', width: '100vw', height: '100svh' }}>
       <Canvas
         // Match the CameraRig intro start pose so the very first frame is
         // already far out — otherwise the default camera paints one frame in
@@ -570,30 +576,33 @@ export default function ObservatoryScene() {
       {/* Atmospheric vignette + grain over the scene */}
       <div className="obs-vignette" />
 
-      {/* Wordmark (top-left) */}
-      <div className="obs-wordmark">
-        <div className="obs-wordmark__title">Observatory</div>
-        <div className="obs-wordmark__rule" />
-        <div className="obs-wordmark__coord">{PROJECTS.length + 1 + extra} Objects Catalogued</div>
-        <div className="obs-wordmark__sub">React Three Fiber · Three.js · WebGL</div>
+      {/* Wordmark and project index (top-left) */}
+      <div className="obs-hud">
+        <div className="obs-wordmark">
+          <h1 className="obs-wordmark__title">Observatory</h1>
+          <div className="obs-wordmark__rule" />
+          <div className="obs-wordmark__coord">{PROJECTS.length + 1 + extra} Objekte katalogisiert</div>
+          <div className="obs-wordmark__sub">React Three Fiber · Three.js · WebGL</div>
+        </div>
+        <ProjectIndex selected={selected} onSelect={setSelected} />
       </div>
 
       {/* Hint */}
       {!selected && (
-        <div className="obs-hint">Klicke ein Objekt · Orbit mit Drag</div>
+        <div className="obs-hint">Projekt anklicken · Ziehen zum Drehen</div>
       )}
 
-      {/* Display settings (recruiters can retint the scene live) */}
-      <div className="obs-panel">
-        <div className="obs-panel__title">Display</div>
+      {/* Display settings: how many extra objects the scene shows */}
+      <div className="obs-panel" role="group" aria-labelledby="obs-panel-title">
+        <div className="obs-panel__title" id="obs-panel-title">Anzeige</div>
         <div className="obs-panel__row">
-          <span className="obs-panel__label">Objects</span>
+          <label className="obs-panel__label" htmlFor="obs-objects">Objekte</label>
           <input
+            id="obs-objects"
             className="obs-range"
             type="range"
             min={0} max={extraMax} step={1} value={extra}
             onChange={(e) => { changeExtra(parseInt(e.target.value, 10)); }}
-            aria-label="Objects"
           />
           <span className="obs-panel__val">{extra}</span>
         </div>
