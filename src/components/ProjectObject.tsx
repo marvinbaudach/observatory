@@ -106,6 +106,9 @@ const STYLE_TUNING: Record<ProjectStyle, { emissive: number; light: number }> = 
   molten:  { emissive: 0.7, light: 1.9 },
 };
 
+// Reused every frame so the selection swell does not allocate.
+const SWELL = new THREE.Vector3();
+
 interface Props {
   project: Project;
   selected: ProjectId | null;
@@ -135,18 +138,25 @@ export function ProjectObject({ project, selected, onSelect, geom, style = 'plas
     // Selection feedback that works across every material: brighten the object's
     // own light + emissive when picked, dim them when another is picked, and
     // gently swell the mesh. Material-agnostic so chrome and glass respond too.
+    // Reduced motion snaps to the target instead of easing.
     const sel = isSelected ? 1 : isDimmed ? 0 : 0.5; // 0 dim · 0.5 idle · 1 selected
     if (matRef.current) {
       const target = tuning.emissive * (isSelected ? 3 : isDimmed ? 0.25 : 1) + (isSelected ? 0.5 : 0);
-      matRef.current.emissiveIntensity = THREE.MathUtils.lerp(matRef.current.emissiveIntensity, target, k);
+      matRef.current.emissiveIntensity = still
+        ? target
+        : THREE.MathUtils.lerp(matRef.current.emissiveIntensity, target, k);
     }
     if (lightRef.current) {
       const target = tuning.light * (isSelected ? 2.2 : isDimmed ? 0.3 : 1);
-      lightRef.current.intensity = THREE.MathUtils.lerp(lightRef.current.intensity, target, k);
+      lightRef.current.intensity = still
+        ? target
+        : THREE.MathUtils.lerp(lightRef.current.intensity, target, k);
     }
     if (meshRef.current) {
       const s = 1 + sel * 0.12;
-      meshRef.current.scale.lerp(new THREE.Vector3(s, s, s), k);
+      SWELL.set(s, s, s);
+      if (still) meshRef.current.scale.copy(SWELL);
+      else meshRef.current.scale.lerp(SWELL, k);
     }
   });
 

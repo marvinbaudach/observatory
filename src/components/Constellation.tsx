@@ -5,6 +5,7 @@ import { Line } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import type { Line2 } from 'three-stdlib';
 import { PROJECTS } from '@/lib/projects';
+import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 
 const PAIRS: [number, number][] = [[0, 1], [1, 2], [2, 0]];
 
@@ -14,9 +15,11 @@ function ConstellationLine({ from, to, phase }: {
   phase: number;
 }) {
   const ref = useRef<Line2>(null);
+  const still = usePrefersReducedMotion();
 
+  // Under reduced motion the pulse is frozen at its current opacity.
   useFrame(({ clock }) => {
-    if (!ref.current) return;
+    if (still || !ref.current) return;
     const t = clock.getElapsedTime();
     ref.current.material.opacity = 0.1 + 0.07 * Math.sin(t * 0.6 + phase);
   });

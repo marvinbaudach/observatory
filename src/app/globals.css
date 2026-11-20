@@ -179,6 +179,9 @@ html, body {
   top: 50%;
   transform: translateX(48px) translateY(-50%);
   width: 340px;
+  /* short landscape viewports: scroll inside the card instead of clipping it */
+  max-height: calc(100svh - 2rem);
+  overflow-y: auto;
   background: var(--glass);
   backdrop-filter: blur(16px);
   border: 1px solid var(--frame);

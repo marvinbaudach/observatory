@@ -16,12 +16,32 @@ const FOCUS_HALF_WIDTH = 1.9;      // a selected object (radius ~1.5) fits the f
 const OVERVIEW_TARGET: [number, number, number] = [0, 0, 0];
 const MAX_DISTANCE_FLOOR = 22;
 const MAX_DISTANCE_MARGIN = 4;
+// The info panel becomes a bottom sheet at this width (see globals.css) and
+// covers up to SHEET_MAX_FRACTION of the viewport height (max-height: 60svh).
+const SHEET_QUERY = '(max-width: 600px)';
+const SHEET_MAX_FRACTION = 0.6;
 
 // Distance at which a given half-width of the scene fills the horizontal field
 // of view. Wide screens keep the fixed minimum; a portrait phone backs off.
 function fitDistance(fovDeg: number, aspect: number, halfWidth: number, minDistance: number): number {
   const halfH = Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2);
   return Math.max(minDistance, halfWidth / (halfH * aspect));
+}
+
+// Camera pose that frames a project head-on. With the bottom sheet open, look
+// at a point below the object so it sits centred in the strip above the sheet.
+function focusPose(
+  position: [number, number, number],
+  distance: number,
+  fovDeg: number,
+): [number, number, number, number, number, number] {
+  const sheet = window.matchMedia(SHEET_QUERY).matches;
+  const halfH = Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2);
+  // The free strip's centre lies SHEET_MAX_FRACTION / 2 of the viewport height
+  // above the screen centre; the viewport is 2 * distance * halfH tall in world units.
+  const lift = sheet ? SHEET_MAX_FRACTION * distance * halfH : 0;
+  const [x, y, z] = position;
+  return [x, y - lift, z + distance, x, y - lift, z];
 }
 
 // Cinematic fly-in start pose: far, high and offset for an arc-like approach.
@@ -51,8 +71,20 @@ export function CameraRig({ selected }: Props) {
   const aspect = useThree(s => (s.size.height > 0 ? s.size.width / s.size.height : 1));
   const overviewDistance = fitDistance(fov, aspect, OVERVIEW_HALF_WIDTH, OVERVIEW_MIN_DISTANCE);
   const focusDistance = fitDistance(fov, aspect, FOCUS_HALF_WIDTH, FOCUS_MIN_DISTANCE);
+  // Latest values for effects that must not re-run when they change.
   const overviewDistanceRef = useRef(overviewDistance);
-  useLayoutEffect(() => { overviewDistanceRef.current = overviewDistance; }, [overviewDistance]);
+  const prevOverviewDistance = useRef(overviewDistance);
+  const focusDistanceRef = useRef(focusDistance);
+  const fovRef = useRef(fov);
+  const selectedRef = useRef(selected);
+  const introActiveRef = useRef(introActive);
+  useLayoutEffect(() => {
+    overviewDistanceRef.current = overviewDistance;
+    focusDistanceRef.current = focusDistance;
+    fovRef.current = fov;
+    selectedRef.current = selected;
+    introActiveRef.current = introActive;
+  }, [overviewDistance, focusDistance, fov, selected, introActive]);
 
   // Place the camera at the start pose synchronously before the first paint —
   // useEffect runs after paint, which let one frame render at the overview pose.
@@ -67,7 +99,8 @@ export function CameraRig({ selected }: Props) {
     const ctrl = controlsRef.current;
     if (!ctrl) return;
 
-    introT.current = Math.min(introT.current + delta / INTRO_DURATION, 1);
+    // Reduced motion switched on mid-intro: jump straight to the end pose.
+    introT.current = reducedMotion ? 1 : Math.min(introT.current + delta / INTRO_DURATION, 1);
     const e = easeInOutCubic(introT.current);
     const px = THREE.MathUtils.lerp(INTRO_FROM.position[0], 0, e);
     const py = THREE.MathUtils.lerp(INTRO_FROM.position[1], OVERVIEW_HEIGHT, e);
@@ -77,7 +110,9 @@ export function CameraRig({ selected }: Props) {
     if (introT.current >= 1) setIntroActive(false);
   });
 
-  // After the intro, hand control to the selection-driven camera moves.
+  // After the intro, hand control to the selection-driven camera moves. Runs on
+  // selection changes only; resize and the reduced-motion setting are handled
+  // elsewhere so they never fly the camera back or discard the user's orbit.
   useEffect(() => {
     if (introActive) return;
     const ctrl = controlsRef.current;
@@ -87,16 +122,32 @@ export function CameraRig({ selected }: Props) {
     if (selected) {
       const p = PROJECTS.find(pr => pr.id === selected);
       if (p) {
-        void ctrl.setLookAt(
-          p.position[0], p.position[1], p.position[2] + focusDistance,
-          p.position[0], p.position[1], p.position[2],
-          animate
-        );
+        void ctrl.setLookAt(...focusPose(p.position, focusDistanceRef.current, fovRef.current), animate);
       }
     } else {
-      void ctrl.setLookAt(0, OVERVIEW_HEIGHT, overviewDistance, ...OVERVIEW_TARGET, animate);
+      void ctrl.setLookAt(0, OVERVIEW_HEIGHT, overviewDistanceRef.current, ...OVERVIEW_TARGET, animate);
     }
-  }, [selected, introActive, reducedMotion, focusDistance, overviewDistance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reducedMotion only picks animate; toggling it must not move the camera
+  }, [selected, introActive]);
+
+  // Canvas aspect changed (resize, rotation): refit without resetting the orbit.
+  // Overview keeps the user's angle and zoom, scaled by the change in fit
+  // distance; a selected object is re-framed in place (no animation, so a
+  // window-edge drag does not start a fly per frame).
+  useEffect(() => {
+    const prevOverview = prevOverviewDistance.current;
+    prevOverviewDistance.current = overviewDistance;
+    const ctrl = controlsRef.current;
+    if (!ctrl || introActiveRef.current) return;
+
+    const current = selectedRef.current;
+    if (current) {
+      const p = PROJECTS.find(pr => pr.id === current);
+      if (p) void ctrl.setLookAt(...focusPose(p.position, focusDistance, fovRef.current), false);
+    } else if (prevOverview !== overviewDistance) {
+      void ctrl.dollyTo(ctrl.distance * (overviewDistance / prevOverview), false);
+    }
+  }, [focusDistance, overviewDistance]);
 
   return (
     <CameraControls
