@@ -9,7 +9,6 @@
 :root {
   --void:      #04030f;
   --glass:     rgba(9, 8, 28, 0.84);
-  --glass-solid: rgb(8, 7, 24); /* --glass composited over the near-black scene */
   --frame:     rgba(120, 140, 255, 0.22);
   --frame-dim: rgba(120, 140, 255, 0.12);
   --star:      rgba(214, 222, 255, 0.96);
@@ -149,8 +148,8 @@ html, body {
   transition: color 0.15s;
 }
 .obs-index__item:hover,
-.obs-index__item[aria-pressed='true'] { color: var(--star); }
-.obs-index__item[aria-pressed='true'] {
+.obs-index__item[aria-current='true'] { color: var(--star); }
+.obs-index__item[aria-current='true'] {
   text-decoration: underline;
   text-decoration-color: var(--azure);
   text-underline-offset: 0.45em;
@@ -218,27 +217,35 @@ html, body {
   transform: translateX(0) translateY(-50%);
 }
 
+/* Title and close button form a fixed header above the scroller, so the button
+   never overlaps the scrollbar and needs no opaque background to hide text
+   scrolling beneath it. */
+.info-panel__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 4px 0 28px;
+}
+
 .info-panel__body {
   min-height: 0;
   overflow-y: auto;
-  padding: 30px 28px 26px;
+  padding: 14px 28px 26px;
 }
 
 .info-panel__close {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+  flex: none;
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
-  /* opaque so body text scrolls behind the button instead of showing through */
-  background: var(--glass-solid);
+  background: none;
   border: none;
   color: var(--star-dim);
   cursor: pointer;
   transition: color 0.15s;
-  z-index: 1;
 }
 .info-panel__close:hover { color: var(--star); }
 
@@ -249,8 +256,6 @@ html, body {
   line-height: 1.05;
   color: var(--star);
   letter-spacing: 0.01em;
-  margin-bottom: 14px;
-  padding-right: 28px;
 }
 
 .info-panel__desc {
@@ -294,7 +299,8 @@ html, body {
   transition: background 0.2s, color 0.2s;
 }
 .info-panel__link:hover { background: rgba(94, 124, 255, 0.12); }
-.info-panel__body:focus { outline: none; }
+.obs-root:focus { outline: none; }
+.info-panel__body:focus:not(:focus-visible) { outline: none; }
 
 /* ── Display settings panel ──────────────────────────────────── */
 .obs-panel {
@@ -412,7 +418,8 @@ html, body {
     border-radius: 4px 4px 0 0;
     transform: translateY(32px);
   }
-  .info-panel__body { padding: 28px 22px calc(24px + env(safe-area-inset-bottom)); }
+  .info-panel__head { padding-left: 22px; }
+  .info-panel__body { padding: 14px 22px calc(24px + env(safe-area-inset-bottom)); }
   .info-panel--visible { transform: none; }
 }
 

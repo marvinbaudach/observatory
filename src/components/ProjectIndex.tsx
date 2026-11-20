@@ -8,6 +8,8 @@ interface Props {
 }
 
 // Keyboard and touch route to the same project panels the 3D objects open.
+// The buttons open a panel rather than toggle state, so the open project is
+// marked with aria-current, not aria-pressed.
 export function ProjectIndex({ selected, onSelect }: Props) {
   return (
     <nav className="obs-index" aria-label="Projects">
@@ -16,7 +18,7 @@ export function ProjectIndex({ selected, onSelect }: Props) {
           <li key={p.id}>
             <button
               className="obs-index__item"
-              aria-pressed={selected === p.id}
+              aria-current={selected === p.id ? 'true' : undefined}
               onClick={() => { onSelect(p.id); }}
             >
               {p.title}

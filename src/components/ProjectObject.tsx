@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Float } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Project, ProjectId } from '@/lib/projects';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
@@ -133,8 +133,16 @@ export function ProjectObject({ project, selected, onSelect, geom, style = 'plas
   const isSelected = selected === project.id;
   const isDimmed   = selected !== null && !isSelected;
 
+  // Under reduced motion the canvas renders on demand: a changed selection has
+  // to ask for the frame in which the snap below is applied.
+  const invalidate = useThree(s => s.invalidate);
+  useEffect(() => { invalidate(); }, [isSelected, isDimmed, still, invalidate]);
+
   useFrame((_, delta) => {
-    const k = delta * 3;
+    // Frame-rate independent ease factor, always in [0, 1). A plain `delta * 3`
+    // exceeds 1 after a long frame (slow software GL, a tab coming back to the
+    // foreground), and lerp then overshoots and diverges instead of settling.
+    const k = 1 - Math.exp(-3 * delta);
     // Selection feedback that works across every material: brighten the object's
     // own light + emissive when picked, dim them when another is picked, and
     // gently swell the mesh. Material-agnostic so chrome and glass respond too.

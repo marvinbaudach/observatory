@@ -13,19 +13,22 @@ import { PostProcessing } from './PostProcessing';
 import { InfoPanel }      from './InfoPanel';
 import { ProjectIndex }   from './ProjectIndex';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
+import { matchesQuery } from '@/lib/useMediaQuery';
 
 // Orbiting key light — decay=0 so it actually reaches the objects (a default
 // point light falls off as 1/d² and was effectively invisible at this scale).
 // Its motion sweeps specular highlights across the textured, metallic facets.
+// Under reduced motion it rests at its t = 0 pose, which the initial `position`
+// prop already sets, so the frame callback has nothing to do.
 function OrbitLight({ color }: { color: string }) {
   const ref = useRef<THREE.PointLight>(null);
   const still = usePrefersReducedMotion();
   useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const t = still ? 0 : clock.elapsedTime * 0.4;
+    if (still || !ref.current) return;
+    const t = clock.elapsedTime * 0.4;
     ref.current.position.set(Math.cos(t) * 9, Math.sin(t * 0.7) * 6 + 2, Math.sin(t) * 9);
   });
-  return <pointLight ref={ref} intensity={2.6} decay={0} color={color} />;
+  return <pointLight ref={ref} position={[9, 2, 0]} intensity={2.6} decay={0} color={color} />;
 }
 
 // Second procedural texture: sharp interference ridges, used by the "crystal"
@@ -352,11 +355,12 @@ function ExtraLight({ count }: { count: number }) {
   const ref = useRef<THREE.PointLight>(null);
   const still = usePrefersReducedMotion();
   useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const t = still ? 0 : clock.elapsedTime * 0.6;
+    if (still || !ref.current) return;
+    const t = clock.elapsedTime * 0.6;
     ref.current.position.set(Math.sin(t) * 7, Math.cos(t * 1.3) * 5, Math.cos(t) * 7);
   });
-  return <pointLight ref={ref} decay={0} intensity={Math.min(count, EXTRA_MAX) * 0.18} color="#ff4fd8" />;
+  // t = 0 pose as the initial position; it only moves while motion is allowed.
+  return <pointLight ref={ref} position={[0, 5, 7]} decay={0} intensity={Math.min(count, EXTRA_MAX) * 0.18} color="#ff4fd8" />;
 }
 
 function ExtraField({ count, reduced }: { count: number; reduced: boolean }) {
@@ -457,14 +461,19 @@ function FpsMeter({ onFps }: { onFps: (fps: number) => void }) {
 // live afterwards, so a wrong guess self-corrects toward the real frame budget.
 function detectLowPower(): boolean {
   if (typeof window === 'undefined') return false;
-  const coarse = matchMedia('(pointer: coarse)').matches;
-  const hasFinePointer = matchMedia('(any-pointer: fine)').matches;
+  const coarse = matchesQuery('(pointer: coarse)');
+  const hasFinePointer = matchesQuery('(any-pointer: fine)');
   return coarse && !hasFinePointer;
 }
 
 export default function ObservatoryScene() {
   const [selected, setSelected] = useState<ProjectId | null>(null);
+  // Where the selection came from: the project index keeps keyboard focus on
+  // the control being stepped, a click on a 3D object hands focus to the panel.
+  const [fromIndex, setFromIndex] = useState(false);
   const [fps, setFps] = useState(0);
+  // Reduced motion freezes the scene, so it only renders when something changes.
+  const frozen = usePrefersReducedMotion();
 
   // Low-power devices are fill-rate bound: MSAA + a bloom composite at full
   // retina DPR is what makes the scene feel slow. Detect once from hardware
@@ -500,6 +509,9 @@ export default function ObservatoryScene() {
     return () => { window.removeEventListener('keydown', onKey); };
   }, []);
 
+  const selectFromScene = (id: ProjectId) => { setFromIndex(false); setSelected(id); };
+  const selectFromIndex = (id: ProjectId) => { setFromIndex(true); setSelected(id); };
+
   // Writes happen only on real user changes; the value is restored in the
   // useState initializer above.
   const changeExtra = (v: number) => {
@@ -508,13 +520,16 @@ export default function ObservatoryScene() {
   };
 
   return (
-    <div className="obs-root" data-selected={selected ? '' : undefined} style={{ position: 'relative', width: '100vw', height: '100svh' }}>
+    // tabIndex -1: a click on the canvas lands focus on this container instead
+    // of dropping it to <body>, so keyboard navigation keeps its place.
+    <div className="obs-root" tabIndex={-1} data-selected={selected ? '' : undefined} style={{ position: 'relative', width: '100vw', height: '100svh' }}>
       <Canvas
         // Match the CameraRig intro start pose so the very first frame is
         // already far out — otherwise the default camera paints one frame in
         // the middle of the objects before the fly-in takes over.
         camera={{ position: [11, 20, 58], fov: 55 }}
         dpr={dpr}
+        frameloop={frozen ? 'demand' : 'always'}
         gl={{
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
@@ -561,7 +576,7 @@ export default function ObservatoryScene() {
             geom={PROJECT_GEO_DECK[i]}
             style={PROJECT_STYLE_DECK[i]}
             selected={selected}
-            onSelect={setSelected}
+            onSelect={selectFromScene}
             reduced={isMobile}
           />
         ))}
@@ -584,7 +599,7 @@ export default function ObservatoryScene() {
           <div className="obs-wordmark__coord">{PROJECTS.length + 1 + extra} objects catalogued</div>
           <div className="obs-wordmark__sub">React Three Fiber · Three.js · WebGL</div>
         </div>
-        <ProjectIndex selected={selected} onSelect={setSelected} />
+        <ProjectIndex selected={selected} onSelect={selectFromIndex} />
       </div>
 
       {/* Hint */}
@@ -608,11 +623,11 @@ export default function ObservatoryScene() {
         </div>
         <div className="obs-panel__row">
           <span className="obs-panel__label">FPS</span>
-          <span className="obs-panel__val obs-panel__val--wide">{fps ? Math.round(fps) : '—'}</span>
+          <span className="obs-panel__val obs-panel__val--wide">{fps && !frozen ? Math.round(fps) : '—'}</span>
         </div>
       </div>
 
-      <InfoPanel project={selectedProject} onClose={() => { setSelected(null); }} />
+      <InfoPanel project={selectedProject} moveFocus={!fromIndex} onClose={() => { setSelected(null); }} />
     </div>
   );
 }

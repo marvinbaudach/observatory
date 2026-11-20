@@ -68,6 +68,9 @@ export function CameraRig({ selected }: Props) {
   const [introActive, setIntroActive] = useState(startsWithIntro);
   const introT = useRef(0);
 
+  // Under reduced motion the canvas renders on demand; every pose change below
+  // asks for the frame that shows it.
+  const invalidate = useThree(s => s.invalidate);
   const fov = useThree(s => (s.camera as THREE.PerspectiveCamera).fov);
   // Guard the first render, before the canvas has been measured (0 / 0).
   const aspect = useThree(s => (s.size.height > 0 ? s.size.width / s.size.height : 1));
@@ -131,8 +134,9 @@ export function CameraRig({ selected }: Props) {
     } else {
       void ctrl.setLookAt(0, OVERVIEW_HEIGHT, overviewDistanceRef.current, ...OVERVIEW_TARGET, animate);
     }
+    invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reducedMotion only picks animate; toggling it must not move the camera
-  }, [selected, introActive]);
+  }, [selected, introActive, invalidate]);
 
   // Canvas aspect changed (resize, rotation): refit without resetting the orbit.
   // Overview keeps the user's angle and zoom, scaled by the change in fit
@@ -155,7 +159,8 @@ export function CameraRig({ selected }: Props) {
     } else if (prevOverview !== overviewDistance) {
       void ctrl.dollyTo(ctrl.distance * (overviewDistance / prevOverview), false);
     }
-  }, [focusDistance, overviewDistance, sheet]);
+    invalidate();
+  }, [focusDistance, overviewDistance, sheet, invalidate]);
 
   return (
     <CameraControls
