@@ -9,6 +9,7 @@
 :root {
   --void:      #04030f;
   --glass:     rgba(9, 8, 28, 0.84);
+  --glass-solid: rgb(8, 7, 24); /* --glass composited over the near-black scene */
   --frame:     rgba(120, 140, 255, 0.22);
   --frame-dim: rgba(120, 140, 255, 0.12);
   --star:      rgba(214, 222, 255, 0.96);
@@ -231,7 +232,8 @@ html, body {
   height: 44px;
   display: grid;
   place-items: center;
-  background: none;
+  /* opaque so body text scrolls behind the button instead of showing through */
+  background: var(--glass-solid);
   border: none;
   color: var(--star-dim);
   cursor: pointer;
@@ -292,7 +294,7 @@ html, body {
   transition: background 0.2s, color 0.2s;
 }
 .info-panel__link:hover { background: rgba(94, 124, 255, 0.12); }
-.info-panel:focus { outline: none; }
+.info-panel__body:focus { outline: none; }
 
 /* ── Display settings panel ──────────────────────────────────── */
 .obs-panel {

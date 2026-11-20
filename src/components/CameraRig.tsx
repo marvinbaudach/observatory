@@ -79,7 +79,6 @@ export function CameraRig({ selected }: Props) {
   const focusDistanceRef = useRef(focusDistance);
   const fovRef = useRef(fov);
   const sheetRef = useRef(sheet);
-  const prevSheet = useRef(sheet);
   const selectedRef = useRef(selected);
   const introActiveRef = useRef(introActive);
   useLayoutEffect(() => {
@@ -140,12 +139,10 @@ export function CameraRig({ selected }: Props) {
   // distance; a selected object is re-framed in place (no animation, so a
   // window-edge drag does not start a fly per frame). Crossing the bottom-sheet
   // breakpoint changes the framing even when the distance stays the same, so
-  // that one discrete change is a real move (a jump under reduced motion).
+  // it re-frames too (as a jump, like any other resize).
   useEffect(() => {
     const prevOverview = prevOverviewDistance.current;
     prevOverviewDistance.current = overviewDistance;
-    const sheetChanged = prevSheet.current !== sheet;
-    prevSheet.current = sheet;
     const ctrl = controlsRef.current;
     if (!ctrl || introActiveRef.current) return;
 
@@ -153,13 +150,11 @@ export function CameraRig({ selected }: Props) {
     if (current) {
       const p = PROJECTS.find(pr => pr.id === current);
       if (p) {
-        const animate = sheetChanged && !reducedMotion;
-        void ctrl.setLookAt(...focusPose(p.position, focusDistance, fovRef.current, sheet), animate);
+        void ctrl.setLookAt(...focusPose(p.position, focusDistance, fovRef.current, sheet), false);
       }
     } else if (prevOverview !== overviewDistance) {
       void ctrl.dollyTo(ctrl.distance * (overviewDistance / prevOverview), false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reducedMotion only picks animate; toggling it must not move the camera
   }, [focusDistance, overviewDistance, sheet]);
 
   return (
