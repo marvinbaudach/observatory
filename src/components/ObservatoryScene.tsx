@@ -581,7 +581,7 @@ export default function ObservatoryScene() {
         <div className="obs-wordmark">
           <h1 className="obs-wordmark__title">Observatory</h1>
           <div className="obs-wordmark__rule" />
-          <div className="obs-wordmark__coord">{PROJECTS.length + 1 + extra} Objekte katalogisiert</div>
+          <div className="obs-wordmark__coord">{PROJECTS.length + 1 + extra} objects catalogued</div>
           <div className="obs-wordmark__sub">React Three Fiber · Three.js · WebGL</div>
         </div>
         <ProjectIndex selected={selected} onSelect={setSelected} />
@@ -589,14 +589,14 @@ export default function ObservatoryScene() {
 
       {/* Hint */}
       {!selected && (
-        <div className="obs-hint">Projekt anklicken · Ziehen zum Drehen</div>
+        <div className="obs-hint">Click a project · Drag to orbit</div>
       )}
 
       {/* Display settings: how many extra objects the scene shows */}
       <div className="obs-panel" role="group" aria-labelledby="obs-panel-title">
-        <div className="obs-panel__title" id="obs-panel-title">Anzeige</div>
+        <div className="obs-panel__title" id="obs-panel-title">Display</div>
         <div className="obs-panel__row">
-          <label className="obs-panel__label" htmlFor="obs-objects">Objekte</label>
+          <label className="obs-panel__label" htmlFor="obs-objects">Objects</label>
           <input
             id="obs-objects"
             className="obs-range"

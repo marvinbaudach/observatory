@@ -10,7 +10,7 @@ interface Props {
 // Keyboard and touch route to the same project panels the 3D objects open.
 export function ProjectIndex({ selected, onSelect }: Props) {
   return (
-    <nav className="obs-index" aria-label="Projekte">
+    <nav className="obs-index" aria-label="Projects">
       <ul>
         {PROJECTS.map(p => (
           <li key={p.id}>

@@ -42,14 +42,14 @@ export function InfoPanel({ project, onClose }: Props) {
     >
       {shown && (
         <>
-          <button className="info-panel__close" onClick={onClose} aria-label="Schliessen">
+          <button className="info-panel__close" onClick={onClose} aria-label="Close">
             <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
               <path d="M1 1l10 10M11 1L1 11" fill="none" stroke="currentColor" strokeWidth="1.2" />
             </svg>
           </button>
           <h2 id="info-panel-title" className="info-panel__title">{shown.title}</h2>
           <p className="info-panel__desc">{shown.description}</p>
-          <ul className="info-panel__tags" aria-label="Technologien">
+          <ul className="info-panel__tags" aria-label="Technologies">
             {shown.tags.map(t => (
               <li key={t} className="info-panel__tag">{t}</li>
             ))}
@@ -61,7 +61,7 @@ export function InfoPanel({ project, onClose }: Props) {
             rel="noopener noreferrer"
             style={{ borderColor: shown.accentColor, color: shown.accentColor }}
           >
-            Live-Demo öffnen<span className="sr-only"> (neuer Tab)</span>
+            Open live demo<span className="sr-only"> (new tab)</span>
           </a>
         </>
       )}
