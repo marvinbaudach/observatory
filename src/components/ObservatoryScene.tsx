@@ -14,21 +14,19 @@ import { InfoPanel }      from './InfoPanel';
 import { ProjectIndex }   from './ProjectIndex';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
 import { matchesQuery } from '@/lib/useMediaQuery';
+import { useRestingOrbit, type OrbitPose } from '@/lib/useRestingOrbit';
 
 // Orbiting key light — decay=0 so it actually reaches the objects (a default
 // point light falls off as 1/d² and was effectively invisible at this scale).
 // Its motion sweeps specular highlights across the textured, metallic facets.
-// Under reduced motion it rests at its t = 0 pose, which the initial `position`
-// prop already sets, so the frame callback has nothing to do.
+// Under reduced motion it rests at its t = 0 pose.
+const orbitLightPose: OrbitPose = (t, p) => {
+  p.set(Math.cos(t) * 9, Math.sin(t * 0.7) * 6 + 2, Math.sin(t) * 9);
+};
 function OrbitLight({ color }: { color: string }) {
   const ref = useRef<THREE.PointLight>(null);
-  const still = usePrefersReducedMotion();
-  useFrame(({ clock }) => {
-    if (still || !ref.current) return;
-    const t = clock.elapsedTime * 0.4;
-    ref.current.position.set(Math.cos(t) * 9, Math.sin(t * 0.7) * 6 + 2, Math.sin(t) * 9);
-  });
-  return <pointLight ref={ref} position={[9, 2, 0]} intensity={2.6} decay={0} color={color} />;
+  useRestingOrbit(ref, 0.4, orbitLightPose);
+  return <pointLight ref={ref} intensity={2.6} decay={0} color={color} />;
 }
 
 // Second procedural texture: sharp interference ridges, used by the "crystal"
@@ -351,16 +349,13 @@ const EXTRA_POOL = (() => {
 
 // Magenta key light that orbits the extra field and brightens as more objects
 // are revealed — adding objects literally adds light to the scene.
+const extraLightPose: OrbitPose = (t, p) => {
+  p.set(Math.sin(t) * 7, Math.cos(t * 1.3) * 5, Math.cos(t) * 7);
+};
 function ExtraLight({ count }: { count: number }) {
   const ref = useRef<THREE.PointLight>(null);
-  const still = usePrefersReducedMotion();
-  useFrame(({ clock }) => {
-    if (still || !ref.current) return;
-    const t = clock.elapsedTime * 0.6;
-    ref.current.position.set(Math.sin(t) * 7, Math.cos(t * 1.3) * 5, Math.cos(t) * 7);
-  });
-  // t = 0 pose as the initial position; it only moves while motion is allowed.
-  return <pointLight ref={ref} position={[0, 5, 7]} decay={0} intensity={Math.min(count, EXTRA_MAX) * 0.18} color="#ff4fd8" />;
+  useRestingOrbit(ref, 0.6, extraLightPose);
+  return <pointLight ref={ref} decay={0} intensity={Math.min(count, EXTRA_MAX) * 0.18} color="#ff4fd8" />;
 }
 
 function ExtraField({ count, reduced }: { count: number; reduced: boolean }) {
@@ -541,13 +536,20 @@ export default function ObservatoryScene() {
         onClick={() => { setSelected(null); }}
       >
         {/* Auto-adaptive quality: scale DPR by the live performance factor so a
-            struggling device backs off and a fast one climbs toward native. */}
-        <PerformanceMonitor
-          onChange={({ factor }) =>
-            { setDpr(Math.round((0.75 + (isMobile ? 0.75 : 1.25) * factor) * 10) / 10); }
-          }
-        />
-        <FpsMeter onFps={setFps} />
+            struggling device backs off and a fast one climbs toward native.
+            Both meters count rendered frames, so they stay unmounted while the
+            canvas only renders on demand; sparse frames would read as low FPS
+            and permanently lower the DPR. */}
+        {!frozen && (
+          <>
+            <PerformanceMonitor
+              onChange={({ factor }) =>
+                { setDpr(Math.round((0.75 + (isMobile ? 0.75 : 1.25) * factor) * 10) / 10); }
+              }
+            />
+            <FpsMeter onFps={setFps} />
+          </>
+        )}
         <ambientLight intensity={0.12} />
         <OrbitLight color="#fff4e6" />
         {/* cool + warm rim fills for coloured edge highlights */}
