@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import type { ProjectId } from '@/lib/projects';
 import { PROJECTS } from '@/lib/projects';
 import { usePrefersReducedMotion } from '@/lib/usePrefersReducedMotion';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 
 const OVERVIEW_HEIGHT = 1.5;
 const OVERVIEW_MIN_DISTANCE = 12;
@@ -34,8 +35,8 @@ function focusPose(
   position: [number, number, number],
   distance: number,
   fovDeg: number,
+  sheet: boolean,
 ): [number, number, number, number, number, number] {
-  const sheet = window.matchMedia(SHEET_QUERY).matches;
   const halfH = Math.tan(THREE.MathUtils.degToRad(fovDeg) / 2);
   // The free strip's centre lies SHEET_MAX_FRACTION / 2 of the viewport height
   // above the screen centre; the viewport is 2 * distance * halfH tall in world units.
@@ -61,6 +62,7 @@ interface Props { selected: ProjectId | null; }
 export function CameraRig({ selected }: Props) {
   const controlsRef = useRef<CameraControls>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const sheet = useMediaQuery(SHEET_QUERY);
   // Reduced motion starts at the overview pose; no fly-in.
   const [startsWithIntro] = useState(!reducedMotion);
   const [introActive, setIntroActive] = useState(startsWithIntro);
@@ -76,15 +78,18 @@ export function CameraRig({ selected }: Props) {
   const prevOverviewDistance = useRef(overviewDistance);
   const focusDistanceRef = useRef(focusDistance);
   const fovRef = useRef(fov);
+  const sheetRef = useRef(sheet);
+  const prevSheet = useRef(sheet);
   const selectedRef = useRef(selected);
   const introActiveRef = useRef(introActive);
   useLayoutEffect(() => {
     overviewDistanceRef.current = overviewDistance;
     focusDistanceRef.current = focusDistance;
     fovRef.current = fov;
+    sheetRef.current = sheet;
     selectedRef.current = selected;
     introActiveRef.current = introActive;
-  }, [overviewDistance, focusDistance, fov, selected, introActive]);
+  }, [overviewDistance, focusDistance, fov, sheet, selected, introActive]);
 
   // Place the camera at the start pose synchronously before the first paint —
   // useEffect runs after paint, which let one frame render at the overview pose.
@@ -122,7 +127,7 @@ export function CameraRig({ selected }: Props) {
     if (selected) {
       const p = PROJECTS.find(pr => pr.id === selected);
       if (p) {
-        void ctrl.setLookAt(...focusPose(p.position, focusDistanceRef.current, fovRef.current), animate);
+        void ctrl.setLookAt(...focusPose(p.position, focusDistanceRef.current, fovRef.current, sheetRef.current), animate);
       }
     } else {
       void ctrl.setLookAt(0, OVERVIEW_HEIGHT, overviewDistanceRef.current, ...OVERVIEW_TARGET, animate);
@@ -133,21 +138,29 @@ export function CameraRig({ selected }: Props) {
   // Canvas aspect changed (resize, rotation): refit without resetting the orbit.
   // Overview keeps the user's angle and zoom, scaled by the change in fit
   // distance; a selected object is re-framed in place (no animation, so a
-  // window-edge drag does not start a fly per frame).
+  // window-edge drag does not start a fly per frame). Crossing the bottom-sheet
+  // breakpoint changes the framing even when the distance stays the same, so
+  // that one discrete change is a real move (a jump under reduced motion).
   useEffect(() => {
     const prevOverview = prevOverviewDistance.current;
     prevOverviewDistance.current = overviewDistance;
+    const sheetChanged = prevSheet.current !== sheet;
+    prevSheet.current = sheet;
     const ctrl = controlsRef.current;
     if (!ctrl || introActiveRef.current) return;
 
     const current = selectedRef.current;
     if (current) {
       const p = PROJECTS.find(pr => pr.id === current);
-      if (p) void ctrl.setLookAt(...focusPose(p.position, focusDistance, fovRef.current), false);
+      if (p) {
+        const animate = sheetChanged && !reducedMotion;
+        void ctrl.setLookAt(...focusPose(p.position, focusDistance, fovRef.current, sheet), animate);
+      }
     } else if (prevOverview !== overviewDistance) {
       void ctrl.dollyTo(ctrl.distance * (overviewDistance / prevOverview), false);
     }
-  }, [focusDistance, overviewDistance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reducedMotion only picks animate; toggling it must not move the camera
+  }, [focusDistance, overviewDistance, sheet]);
 
   return (
     <CameraControls

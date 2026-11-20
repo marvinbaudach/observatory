@@ -47,22 +47,24 @@ export function InfoPanel({ project, onClose }: Props) {
               <path d="M1 1l10 10M11 1L1 11" fill="none" stroke="currentColor" strokeWidth="1.2" />
             </svg>
           </button>
-          <h2 id="info-panel-title" className="info-panel__title">{shown.title}</h2>
-          <p className="info-panel__desc">{shown.description}</p>
-          <ul className="info-panel__tags" aria-label="Technologies">
-            {shown.tags.map(t => (
-              <li key={t} className="info-panel__tag">{t}</li>
-            ))}
-          </ul>
-          <a
-            className="info-panel__link"
-            href={shown.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ borderColor: shown.accentColor, color: shown.accentColor }}
-          >
-            Open live demo<span className="sr-only"> (new tab)</span>
-          </a>
+          <div className="info-panel__body">
+            <h2 id="info-panel-title" className="info-panel__title">{shown.title}</h2>
+            <p className="info-panel__desc">{shown.description}</p>
+            <ul className="info-panel__tags" aria-label="Technologies">
+              {shown.tags.map(t => (
+                <li key={t} className="info-panel__tag">{t}</li>
+              ))}
+            </ul>
+            <a
+              className="info-panel__link"
+              href={shown.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ borderColor: shown.accentColor, color: shown.accentColor }}
+            >
+              Open live demo<span className="sr-only"> (new tab)</span>
+            </a>
+          </div>
         </>
       )}
     </div>
